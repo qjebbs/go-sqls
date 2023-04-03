@@ -55,8 +55,8 @@ func (b *QueryBuilder) CrossJoin(t sqls.Table) *QueryBuilder {
 
 // From append or replace a from table.
 func (b *QueryBuilder) join(joinStr string, table sqls.Table, on *sqls.Segment, optional bool) *QueryBuilder {
-	if table[1] == "" {
-		b.pushError(fmt.Errorf("join table alias is empty"))
+	if table[0] == "" {
+		b.pushError(fmt.Errorf("join table name is empty"))
 		return b
 	}
 	if _, ok := b.tablesByName[table]; !ok {
@@ -66,9 +66,9 @@ func (b *QueryBuilder) join(joinStr string, table sqls.Table, on *sqls.Segment, 
 		}
 		b.tableNames = append(b.tableNames, table)
 	}
-	tableAndAlias := string(table[1])
-	if table[0] != "" {
-		tableAndAlias = table[0] + " " + tableAndAlias
+	tableAndAlias := table[0]
+	if table[1] != "" {
+		tableAndAlias = tableAndAlias + " AS " + table[1]
 	}
 	if on == nil || on.Raw == "" {
 		b.tablesByName[table] = &fromTable{

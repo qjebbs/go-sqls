@@ -150,7 +150,7 @@ func (b *QueryBuilder) From(t sqls.Table) *QueryBuilder {
 	}
 	tableAndAlias := t[1]
 	if t[0] != "" {
-		tableAndAlias = t[0] + " " + tableAndAlias
+		tableAndAlias = t[0] + " AS " + tableAndAlias
 	}
 	if len(b.tableNames) == 0 {
 		b.tableNames = append(b.tableNames, t)

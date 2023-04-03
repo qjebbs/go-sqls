@@ -51,7 +51,7 @@ func TestQueryBuilder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantQuery := "With users AS (SELECT * FROM users WHERE type=$1) SELECT DISTINCT f.id, f.name FROM users u LEFT JOIN foo f ON f.user_id=u.id WHERE u.id=$2 UNION (SELECT f.id, f.name FROM foo f WHERE f.id>$3 AND f.id<$4)"
+	wantQuery := "With users AS (SELECT * FROM users WHERE type=$1) SELECT DISTINCT f.id, f.name FROM users AS u LEFT JOIN foo AS f ON f.user_id=u.id WHERE u.id=$2 UNION (SELECT f.id, f.name FROM foo AS f WHERE f.id>$3 AND f.id<$4)"
 	wantArgs := []any{"user", 1, 10, 20}
 	if wantQuery != gotQuery {
 		t.Errorf("want:\n%s\ngot:\n%s", wantQuery, gotQuery)

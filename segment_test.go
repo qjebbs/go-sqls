@@ -95,7 +95,7 @@ func TestBuildSegment(t *testing.T) {
 			segment: &sqls.Segment{
 				Raw: "#c1",
 				Columns: []*sqls.TableColumn{
-					table.Expression("#.id=$1", 1),
+					table.Expression("#t1.id=$1", 1),
 				},
 			},
 			want:     "t.id=$1",
@@ -105,7 +105,7 @@ func TestBuildSegment(t *testing.T) {
 			segment: &sqls.Segment{
 				Raw: "#c1 > $1",
 				Columns: []*sqls.TableColumn{
-					table.Expression("#.id - $1", 1),
+					table.Expression("#t1.id - $1", 1),
 				},
 				Args: []any{2},
 			},
@@ -114,33 +114,33 @@ func TestBuildSegment(t *testing.T) {
 		},
 		{
 			segment: &sqls.Segment{
-				Raw: "WITH t AS (#s1) SELECT #c1,#c2,$1 FROM #t1",
+				Raw: "WITH t AS (#s1) SELECT #c1,#c2,$1 FROM #tAs1",
 				Segments: []*sqls.Segment{
 					{
-						Raw:     "SELECT * FROM #t1 WHERE #c1 > $1",
+						Raw:     "SELECT * FROM #tAs1 WHERE #c1 > $1",
 						Columns: table.Columns("id"),
 						Args:    []any{1},
 					},
 				},
 				Columns: []*sqls.TableColumn{
-					table.Expression("#.id"),
-					table.Expression("#.id=$1", 2),
+					table.Expression("#t1.id"),
+					table.Expression("#t1.id=$1", 2),
 				},
 				Args: []any{"foo"},
 			},
-			want:     "WITH t AS (SELECT * FROM table t WHERE t.id > $1) SELECT t.id,t.id=$2,$3 FROM table t",
+			want:     "WITH t AS (SELECT * FROM table AS t WHERE t.id > $1) SELECT t.id,t.id=$2,$3 FROM table AS t",
 			wantArgs: []any{1, 2, "foo"},
 		},
 		{
 			segment: &sqls.Segment{
-				Raw: "SELECT #join('#c', ', ') FROM #t1",
+				Raw: "SELECT #join('#c', ', ') FROM #tAs1",
 				Columns: []*sqls.TableColumn{
-					table.Expression("#.id"),
-					table.Expression("#.id=$1", 1),
-					table.Expression("#.name"),
+					table.Expression("#t1.id"),
+					table.Expression("#t1.id=$1", 1),
+					table.Expression("#t1.name"),
 				},
 			},
-			want:     "SELECT t.id, t.id=$1, t.name FROM table t",
+			want:     "SELECT t.id, t.id=$1, t.name FROM table AS t",
 			wantArgs: []any{1},
 		},
 		{

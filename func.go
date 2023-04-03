@@ -130,6 +130,17 @@ func table(ctx *context, args ...string) (string, error) {
 	return ctx.Table(ctx, i)
 }
 
+func tableNameAndAlias(ctx *context, args ...string) (string, error) {
+	if len(args) != 1 {
+		return "", argError("tableNameAndAlias(i int)", args)
+	}
+	i, err := strconv.Atoi(args[0])
+	if err != nil {
+		return "", fmt.Errorf("invalid index '%s': %w", args[0], err)
+	}
+	return ctx.TableAndAaias(ctx, i)
+}
+
 func segment(ctx *context, args ...string) (string, error) {
 	if len(args) != 1 {
 		return "", argError("segment(i int)", args)

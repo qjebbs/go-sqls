@@ -11,8 +11,9 @@ func TestColumns(t *testing.T) {
 		want   string
 	}{
 		{column: table.Column("id"), want: "f.id"},
-		{column: table.Expression("COALESCE(#.id,0)"), want: "COALESCE(f.id,0)"},
-		{column: table.Expression("COALESCE(#.id,$1)", 1), want: "COALESCE(f.id,$1)"},
+		{column: table.Expression("id"), want: "id"},
+		{column: table.Expression("COALESCE(#t1.id,0)"), want: "COALESCE(f.id,0)"},
+		{column: table.Expression("COALESCE(#t1.id,$1)", 1), want: "COALESCE(f.id,$1)"},
 	}
 	for _, tc := range testCases {
 		argStore := []any{}

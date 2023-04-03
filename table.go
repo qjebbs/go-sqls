@@ -2,7 +2,6 @@ package sqls
 
 import (
 	"fmt"
-	"strings"
 
 	"git.qjebbs.com/jebbs/go-sqls/syntax"
 )
@@ -31,22 +30,21 @@ func (c *TableColumn) buildInternal(ctx *context) (string, error) {
 			return string(c.Table[1]) + "." + c.Name, nil
 		}
 	}
-	var exp string
-	switch {
-	case c.Table[1] == "":
-		exp = strings.ReplaceAll(c.Expression, "#.", string(c.Table[1]))
-	default:
-		exp = strings.ReplaceAll(c.Expression, "#", string(c.Table[1]))
+	seg := &Segment{
+		Raw:     c.Expression,
+		Args:    c.Args,
+		Columns: c.Table.AnyColumns(),
 	}
-	clause, err := syntax.Parse(exp)
+	clause, err := syntax.Parse(c.Expression)
 	if err != nil || clause == nil {
 		return "", err
 	}
+	ctx = ctx.newContextForSegment(seg)
 	built, err := build(ctx, clause)
 	if err != nil {
 		return "", err
 	}
-	if err := ctx.checkUsage(); err != nil {
+	if err := ctx.checkArgUsage(); err != nil {
 		return "", fmt.Errorf("build '%s': %w", c.Expression, err)
 	}
 	return built, err
@@ -59,10 +57,10 @@ func (c *TableColumn) buildInternal(ctx *context) (string, error) {
 type Table [2]string
 
 func (t Table) String() string {
-	if t[1] == "" {
-		return t[0]
+	if t[1] != "" {
+		return t[1]
 	}
-	return t[0] + " " + t[1]
+	return t[0]
 }
 
 // AnyColumn returns a wildcard column of the table, e.g.:
@@ -102,9 +100,9 @@ func (t Table) Column(name string) *TableColumn {
 //
 // For example:
 //
-//	t.Expression("#.id")
-//	t.Expression("COALESCE(#.id,0)")
-//	t.Expression("#.deteled_at > $1", 1)
+//	t.Expression("#t1.id")
+//	t.Expression("COALESCE(#t1.id,0)")
+//	t.Expression("#t1.deteled_at > $1", 1)
 func (t Table) Expression(expression string, args ...any) *TableColumn {
 	return &TableColumn{
 		Table:      t,
@@ -137,8 +135,8 @@ func (t Table) Columns(names ...string) []*TableColumn {
 //
 // For example:
 //
-//	t.Expressions("#.id", "#.deteled_at")
-//	t.Expressions("COALESCE(#.id,0)", "#.deteled_at IS NULL")
+//	t.Expressions("#t1.id", "#t1.deteled_at")
+//	t.Expressions("COALESCE(#t1.id,0)", "#t1.deteled_at IS NULL")
 func (t Table) Expressions(expressions ...string) []*TableColumn {
 	r := make([]*TableColumn, 0, len(expressions))
 	for _, exp := range expressions {

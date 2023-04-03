@@ -33,7 +33,7 @@ func ExampleQueryBuilder_Build() {
 	fmt.Println(query)
 	fmt.Println(args)
 	// Output:
-	// SELECT f.* FROM foo f INNER JOIN bar b ON b.foo_id=f.id WHERE (f.a=$1 OR f.b=$2) AND b.c=$3
+	// SELECT f.* FROM foo AS f INNER JOIN bar AS b ON b.foo_id=f.id WHERE (f.a=$1 OR f.b=$2) AND b.c=$3
 	// [1 2 3]
 }
 
@@ -62,7 +62,7 @@ func ExampleQueryBuilder_LeftJoinOptional() {
 	fmt.Println(query)
 	fmt.Println(args)
 	// Output:
-	// SELECT DISTINCT f.* FROM foo f WHERE f.id>$1
+	// SELECT DISTINCT f.* FROM foo AS f WHERE f.id>$1
 	// [1]
 }
 
@@ -72,7 +72,7 @@ func ExampleQueryBuilder_With() {
 	cte := sqls.Table{"bar_type_1", "b1"}
 	query, args, err := sqlb.NewQueryBuilder(nil).
 		With(cte, &sqls.Segment{
-			Raw:     "SELECT * FROM #t1 WHERE #c1=$1",
+			Raw:     "SELECT * FROM #tAs1 WHERE #c1=$1",
 			Columns: bar.Columns("type"),
 			Args:    []any{1},
 		}).
@@ -95,7 +95,7 @@ func ExampleQueryBuilder_With() {
 	fmt.Println(query)
 	fmt.Println(args)
 	// Output:
-	// With bar_type_1 AS (SELECT * FROM bar b WHERE b.type=$1) SELECT f.*, b1.* FROM foo f LEFT JOIN bar_type_1 b1 ON b1.foo_id=f.id
+	// With bar_type_1 AS (SELECT * FROM bar AS b WHERE b.type=$1) SELECT f.*, b1.* FROM foo AS f LEFT JOIN bar_type_1 AS b1 ON b1.foo_id=f.id
 	// [1]
 }
 
@@ -119,6 +119,6 @@ func ExampleQueryBuilder_Union() {
 	fmt.Println(query)
 	fmt.Println(args)
 	// Output:
-	// SELECT f.* FROM foo f WHERE f.id = $1 UNION (SELECT f.* FROM foo f WHERE f.id IN ($2, $3, $4))
+	// SELECT f.* FROM foo AS f WHERE f.id = $1 UNION (SELECT f.* FROM foo AS f WHERE f.id IN ($2, $3, $4))
 	// [1 2 3 4]
 }

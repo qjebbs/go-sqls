@@ -28,6 +28,7 @@ func newContext(argStore *[]any, s *Segment) *context {
 				"column":  column,
 				"t":       table,
 				"table":   table,
+				"tAs":     tableNameAndAlias,
 				"s":       segment,
 				"seg":     segment,
 				"segment": segment,
@@ -131,6 +132,21 @@ func (c *perSegmentContext) Table(ctx *context, index int) (string, error) {
 	return c.s.Columns[index-1].Table.String(), nil
 }
 
+func (c *perSegmentContext) TableAndAaias(ctx *context, index int) (string, error) {
+	c.columnsUsed[index-1] = true
+	if index > len(c.s.Columns) {
+		return "", fmt.Errorf("invalid table index %d", index)
+	}
+	t := c.s.Columns[index-1].Table
+	if t[0] == "" {
+		return "", fmt.Errorf("empty table name at %d", index)
+	}
+	if t[1] == "" {
+		return t[0], nil
+	}
+	return t[0] + " AS " + t[1], nil
+}
+
 func (c *perSegmentContext) Segment(ctx *context, index int) (string, error) {
 	if index > len(c.s.Segments) {
 		return "", fmt.Errorf("invalid segment index %d", index)
@@ -164,6 +180,15 @@ func (c *perSegmentContext) checkUsage() error {
 	for i, v := range c.segmentsUsed {
 		if !v {
 			return fmt.Errorf("segment %d is not used", i+1)
+		}
+	}
+	return nil
+}
+
+func (c *perSegmentContext) checkArgUsage() error {
+	for i, v := range c.argsCache {
+		if v == "" {
+			return fmt.Errorf("arg %d is not used", i+1)
 		}
 	}
 	return nil
