@@ -1,149 +1,91 @@
 package sqls
 
-import (
-	"fmt"
+// Table is a table identifier, it can a table name or an alias.
+type Table string
 
-	"git.qjebbs.com/jebbs/go-sqls/syntax"
-)
-
-// TableColumn is a column of a table, it accpets a column Name or an
-// Expression, the Name is prioritized if both set.
-type TableColumn struct {
-	Table Table
-	Name  string
-
-	// Expression accepts placeholders:
-	// # for table alias; $1 or $1, $2 ... for args
-	Expression string
-	Args       []any
-}
-
-func (c *TableColumn) buildInternal(ctx *context) (string, error) {
-	if c == nil {
-		return "", nil
-	}
-	if c.Name != "" {
-		switch {
-		case c.Table[1] == "":
-			return c.Name, nil
-		default:
-			return string(c.Table[1]) + "." + c.Name, nil
-		}
-	}
-	seg := &Segment{
-		Raw:     c.Expression,
-		Args:    c.Args,
-		Columns: c.Table.AnyColumns(),
-	}
-	clause, err := syntax.Parse(c.Expression)
-	if err != nil || clause == nil {
-		return "", err
-	}
-	ctx = ctx.newContextForSegment(seg)
-	built, err := build(ctx, clause)
-	if err != nil {
-		return "", err
-	}
-	if err := ctx.checkArgUsage(); err != nil {
-		return "", fmt.Errorf("build '%s': %w", c.Expression, err)
-	}
-	return built, err
-}
-
-// Table holds the name and alias of a table or CTE (common table expression), e.g.:
+// Column returns a column of the table.
+// It add table prefix to the column name, e.g.: "id" -> "t.id".
 //
-//	users := Table{"users", "u"}
-//	cte := Table{"cte", "c"}
-type Table [2]string
-
-func (t Table) String() string {
-	if t[1] != "" {
-		return t[1]
-	}
-	return t[0]
-}
-
-// AnyColumn returns a wildcard column of the table, e.g.:
+// For example:
 //
-//	t.AnyColumn() // "t.*"
-func (t Table) AnyColumn() *TableColumn {
-	return &TableColumn{
-		Table: t,
-		Name:  "*",
-	}
-}
-
-// AnyColumns is the same as AnyColumn, but returns a slice.
-func (t Table) AnyColumns() []*TableColumn {
-	return []*TableColumn{
-		t.AnyColumn(),
-	}
-}
-
-// Column returns a named column of the table, e.g.:
+//	t := Table("t")
+//	// these two are equivalent
+//	t.Column("id")         // "t.id"
+//	t.Expression("#t1.id") // "t.id"
 //
-//	t.Column("id") // "t.id"
+// If you want to use the column name directly, try:
+//
+//	t.Expressions("id") // "id"
 func (t Table) Column(name string) *TableColumn {
 	return &TableColumn{
 		Table: t,
-		Name:  name,
+		Raw:   "#t1." + name,
 	}
 }
 
-// Expression returns a expression column of the table.
-//
-// The expression accepts placeholders:
-//
-//   - # => table alias
-//   - $1, $2 ... => t.Args[0], t.Args[1] ...
-//   - ?, ? ... => t.Args[0], t.Args[1] ...
+// Columns returns columns of the table from names.
+// It add table prefix to the column name, e.g.: "id" -> "t.id".
 //
 // For example:
 //
-//	t.Expression("#t1.id")
-//	t.Expression("COALESCE(#t1.id,0)")
-//	t.Expression("#t1.deteled_at > $1", 1)
-func (t Table) Expression(expression string, args ...any) *TableColumn {
-	return &TableColumn{
-		Table:      t,
-		Expression: expression,
-		Args:       args,
-	}
-}
-
-// Columns returns the named columns of the table, e.g.:
+//	t := Table("t")
+//	// these two are equivalent
+//	t.Columns("id", "name")              // "t.id", "t.name"
+//	t.Expressions("#t1.id", "#t1.name")  // "t.id", "t.name"
 //
-//	t.Columns("id", "name")
+// If you want to use the column name directly, try:
+//
+//	t.Expressions("id", "name") // "id", "name"
 func (t Table) Columns(names ...string) []*TableColumn {
 	r := make([]*TableColumn, 0, len(names))
-	for _, f := range names {
-		r = append(r, &TableColumn{
-			Table: t,
-			Name:  f,
-		})
+	for _, name := range names {
+		r = append(r, t.Column(name))
 	}
 	return r
 }
 
-// Expressions returns expression columns of the table.
-//
-// The expressions accept placeholders:
-//
-//   - # => table alias
-//   - $1, $2 ... => t.Args[0], t.Args[1] ...
-//   - ?, ? ... => t.Args[0], t.Args[1] ...
+// Expression returns a column of the table from the expression which
+// accepts bindvars and the preprocessor #t1 (name), #t1  (alias), which
+// are implicit in "*TableColumn.Table".
 //
 // For example:
 //
-//	t.Expressions("#t1.id", "#t1.deteled_at")
-//	t.Expressions("COALESCE(#t1.id,0)", "#t1.deteled_at IS NULL")
+//	t := Table("t")
+//	t.Expression("id")                       // "id"
+//	t.Expression("#t1.id")                   // "table.id"
+//	t.Expression("#t1.id")                  // "t.id"
+//	t.Expression("COALESCE(#t1.id,0)")      // "COALESCE(t.id,0)"
+//	t.Expression("#t1.deteled_at > $1", 1)  // "t.deteled_at > $1"
+func (t Table) Expression(expression string, args ...any) *TableColumn {
+	return &TableColumn{
+		Table: t,
+		Raw:   expression,
+		Args:  args,
+	}
+}
+
+// Expressions returns columns of the table from the expression, which
+// accepts bindvars and the preprocessor #t1 (name), #t1  (alias) which
+// are implicit in "*TableColumn.Table".
+//
+// For example:
+//
+//	t := Table("t")
+//	t.Expressions("id", "deteled_at")         // "id", "deteled_at"
+//	t.Expressions("#t1.id", "#t1.deteled_at") // "table.id", "table.deteled_at"
+//	t.Expressions("#t1.id", "#t1.deteled_at") // "t.id", "t.deteled_at"
+//	t.Expressions("COALESCE(#t1.id,0)")       // "COALESCE(t.id,0)"
 func (t Table) Expressions(expressions ...string) []*TableColumn {
 	r := make([]*TableColumn, 0, len(expressions))
 	for _, exp := range expressions {
-		r = append(r, &TableColumn{
-			Table:      t,
-			Expression: exp,
-		})
+		r = append(r, t.Expression(exp))
 	}
 	return r
+}
+
+// TableColumn is a column of a table.
+type TableColumn struct {
+	Table Table
+	Raw   string
+	Args  []any
 }

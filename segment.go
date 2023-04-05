@@ -1,49 +1,54 @@
 package sqls
 
-var _ Builder = (*Segment)(nil)
-
 // Segment is the builder for a part of or even the full query, it allows you
-// to write with placeholders, and combine any segments with freedom.
-//
-// With the help of Segment, we pay attention only to the reference relationships
-// inside the segment, for example, use "$1" to refer the first element of s.Args.
-//
-// Bindvars supported:
-//   - $1, $2 ...
-//   - ?, ?, ...
-//
-// Built-in preprocessors:
-//   - #c, #col, #column: refer to the column by index, e.g. #c1, #c(1)
-//   - #t, #table: refer to the table by index, e.g. #t1, #t(1)
-//   - #s, #seg, #segment: refer to the segment by index, e.g. #s1, #s(1)
-//   - #join: join the template (with references) by the separator, e.g. #join('#column', ', '), #join('#c=#$', ', ')
-//   - #$: refer to the argument by index, used in #join().
-//   - #?: refer to the argument by index, used in #join().
-//
-// Note, references in the #join template are funcs, with no arguments.
+// to write and combine segments with freedom.
 type Segment struct {
-	Header   string         // Header is added before the segment only if the body is not empty.
-	Footer   string         // Footer is added after the segment only if the body is not empty.
-	Raw      string         // Raw string support placeholders
-	Segments []*Segment     // Segments referenced by the Raw
-	Columns  []*TableColumn // Columns referenced by the Raw
-	Args     []any          // Args referenced by the Raw
+	Raw      string         // Raw string support bindvars and preprocessing functions.
+	Args     []any          // Args to be referenced by the Raw
+	Columns  []*TableColumn // Columns to be referenced by the Raw
+	Tables   []Table        // Table names / alias to be referenced by the Raw
+	Segments []*Segment     // Segments to be referenced by the Raw
+
+	Prefix string // Prefix is added before the rendered segment only if which is not empty.
+	Suffix string // Suffix is added after the rendered segment only if which is not empty.
+}
+
+// AppendTables appends tables to the segment.
+func (s *Segment) AppendTables(tables ...Table) {
+	s.Tables = append(s.Tables, tables...)
 }
 
 // AppendColumns appends columns to the segment.
-func (s *Segment) AppendColumns(columns ...*TableColumn) *Segment {
+func (s *Segment) AppendColumns(columns ...*TableColumn) {
 	s.Columns = append(s.Columns, columns...)
-	return s
 }
 
 // AppendSegments appends segments to the s.Segments.
-func (s *Segment) AppendSegments(segments ...*Segment) *Segment {
+func (s *Segment) AppendSegments(segments ...*Segment) {
 	s.Segments = append(s.Segments, segments...)
-	return s
 }
 
 // AppendArgs appends args to the s.Args.
-func (s *Segment) AppendArgs(args ...any) *Segment {
+func (s *Segment) AppendArgs(args ...any) {
 	s.Args = append(s.Args, args...)
-	return s
+}
+
+// WithTables replace s.Tables with the tables
+func (s *Segment) WithTables(tables ...Table) {
+	s.Tables = tables
+}
+
+// WithColumns replace s.Columns with the columns
+func (s *Segment) WithColumns(columns ...*TableColumn) {
+	s.Columns = columns
+}
+
+// WithSegments replace s.Segments with the segments
+func (s *Segment) WithSegments(segments ...*Segment) {
+	s.Segments = segments
+}
+
+// WithArgs replace s.Args with the args
+func (s *Segment) WithArgs(args ...any) {
+	s.Args = args
 }

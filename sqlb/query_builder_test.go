@@ -10,40 +10,40 @@ import (
 
 func TestQueryBuilder(t *testing.T) {
 	var (
-		users = sqls.Table{"users", "u"}
-		foo   = sqls.Table{"foo", "f"}
-		bar   = sqls.Table{"bar", "b"}
+		users, usersAlias sqls.Table = "users", "u"
+		foo, fooAlias     sqls.Table = "foo", "f"
+		bar, barAlias     sqls.Table = "bar", "b"
 	)
 	q := sqlb.NewQueryBuilder(nil).Distinct().
-		With(users, &sqls.Segment{
+		With(users, usersAlias, &sqls.Segment{
 			Raw:  "SELECT * FROM users WHERE type=$1",
 			Args: []any{"user"},
 		}).
-		With(sqls.Table{"", "x"}, &sqls.Segment{Raw: "SELECT 1 AS whatever"}) // should be ignored
-	q.Select(foo.Columns("id", "name")).
-		From(users).
-		LeftJoinOptional(foo, &sqls.Segment{
+		With("xxx", "x", &sqls.Segment{Raw: "SELECT 1 AS whatever"}) // should be ignored
+	q.Select(fooAlias.Columns("id", "name")).
+		From(users, usersAlias).
+		LeftJoinOptional(foo, fooAlias, &sqls.Segment{
 			Raw: "#c1=#c2",
 			Columns: []*sqls.TableColumn{
-				foo.Column("user_id"),
-				users.Column("id"),
+				fooAlias.Column("user_id"),
+				usersAlias.Column("id"),
 			},
 		}).
-		LeftJoinOptional(bar, &sqls.Segment{ // not referenced, should be ignored
+		LeftJoinOptional(bar, barAlias, &sqls.Segment{ // not referenced, should be ignored
 			Raw: "#c1=#c2",
 			Columns: []*sqls.TableColumn{
-				bar.Column("user_id"),
-				users.Column("id"),
+				barAlias.Column("user_id"),
+				usersAlias.Column("id"),
 			},
 		}).
-		Where2(users.Column("id"), "=", 1).
+		Where2(usersAlias.Column("id"), "=", 1).
 		Union(
 			sqlb.NewQueryBuilder(nil).
-				Select(foo.Columns("id", "name")).
-				From(foo).
+				Select(fooAlias.Columns("id", "name")).
+				From(foo, fooAlias).
 				Where(&sqls.Segment{
 					Raw:     "#c1>$1 AND #c1<$2",
-					Columns: foo.Columns("id"),
+					Columns: fooAlias.Columns("id"),
 					Args:    []any{10, 20},
 				}),
 		)

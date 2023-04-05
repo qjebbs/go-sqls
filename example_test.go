@@ -6,17 +6,19 @@ import (
 	"git.qjebbs.com/jebbs/go-sqls"
 )
 
-func ExampleSegment_select() {
-	t := sqls.Table{"users", ""}
+func Example_select() {
 	selectFrom := &sqls.Segment{
-		Header: "",
-		Raw:    "SELECT #join('#column', ', ') FROM users",
+		Prefix: "",
+		// join columns with ', '
+		Raw: "SELECT #join('#column', ', ') FROM #t1",
 	}
 	where := &sqls.Segment{
-		Header: "WHERE",
-		Raw:    "#join('#segment', ' AND ')",
+		Prefix: "WHERE",
+		// join segments with ' AND '
+		Raw: "#join('#segment', ' AND ')",
 	}
 	builder := &sqls.Segment{
+		// join segments with ' '
 		Raw: "#join('#segment', ' ')",
 		Segments: []*sqls.Segment{
 			selectFrom,
@@ -24,16 +26,21 @@ func ExampleSegment_select() {
 		},
 	}
 
-	selectFrom.AppendColumns(t.Columns("id", "name", "email")...)
-	// append as many conditions as you want
+	var users sqls.Table = "users"
+	selectFrom.WithTables(users)
+	// select columns
+	selectFrom.AppendColumns(users.Expressions("id", "name", "email")...)
+	// append WHERE condition 1
 	where.AppendSegments(&sqls.Segment{
-		Raw:     "#c1 IN (#join('#$', ', '))", // (#join('#?', ', ') is also supported
-		Columns: t.Columns("id"),
+		// (#join('#?', ', ') is also supported
+		Raw:     "#c1 IN (#join('#$', ', '))",
+		Columns: users.Expressions("id"),
 		Args:    []any{1, 2, 3},
 	})
+	// append WHERE condition 2
 	where.AppendSegments(&sqls.Segment{
 		Raw:     "#c1 = $1",
-		Columns: t.Columns("active"),
+		Columns: users.Expressions("active"),
 		Args:    []any{true},
 	})
 
@@ -48,14 +55,13 @@ func ExampleSegment_select() {
 	// [1 2 3 true]
 }
 
-func ExampleSegment_update() {
-	t := sqls.Table{"users", ""}
+func Example_update() {
 	update := &sqls.Segment{
-		Header: "",
-		Raw:    "UPDATE users SET #join('#c=#$', ', ')",
+		Prefix: "",
+		Raw:    "UPDATE #t1 SET #join('#c=#$', ', ')",
 	}
 	where := &sqls.Segment{
-		Header: "WHERE",
+		Prefix: "WHERE",
 		Raw:    "#join('#segment', ' AND ')",
 	}
 	builder := &sqls.Segment{
@@ -66,12 +72,14 @@ func ExampleSegment_update() {
 		},
 	}
 
-	update.AppendColumns(t.Columns("name", "email")...)
-	update.AppendArgs("jebbs", "qjebbs@gmail.com")
+	var users sqls.Table = "users"
+	update.WithTables(users)
+	update.WithColumns(users.Expressions("name", "email")...)
+	update.WithArgs("jebbs", "qjebbs@gmail.com")
 	// append as many conditions as you want
-	where.AppendSegments(&sqls.Segment{
+	where.WithSegments(&sqls.Segment{
 		Raw:     "#c1=$1",
-		Columns: t.Columns("id"),
+		Columns: users.Expressions("id"),
 		Args:    []any{1},
 	})
 

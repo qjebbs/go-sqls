@@ -7,7 +7,7 @@ import (
 	"git.qjebbs.com/jebbs/go-sqls"
 )
 
-var _ sqls.Builder = (*QueryBuilder)(nil)
+var _ Builder = (*QueryBuilder)(nil)
 
 // QueryBuilder is the SQL query builder.
 // It's recommended to wrap it with your struct to provide a
@@ -19,15 +19,15 @@ type QueryBuilder struct {
 	tableNames       []sqls.Table              // the table names
 	tablesByName     map[sqls.Table]*fromTable // the tables by name
 
-	selects    *sqls.Segment  // select columns and keep values in scanning.
-	touches    *sqls.Segment  // select columns but drop values in scanning.
-	conditions *sqls.Segment  // where conditions, joined with AND.
-	orders     *sqls.Segment  // order by columns, joined with comma.
-	groupbys   *sqls.Segment  // group by columns, joined with comma.
-	distinct   bool           // select distinct
-	limit      int64          // limit count
-	offset     int64          // offset count
-	unions     []sqls.Builder // union queries
+	selects    *sqls.Segment // select columns and keep values in scanning.
+	touches    *sqls.Segment // select columns but drop values in scanning.
+	conditions *sqls.Segment // where conditions, joined with AND.
+	orders     *sqls.Segment // order by columns, joined with comma.
+	groupbys   *sqls.Segment // group by columns, joined with comma.
+	distinct   bool          // select distinct
+	limit      int64         // limit count
+	offset     int64         // offset count
+	unions     []Builder     // union queries
 
 	errors []error // errors during building
 }
@@ -52,23 +52,23 @@ func NewQueryBuilder(db QueryAble) *QueryBuilder {
 		db:           db,
 		tablesByName: make(map[sqls.Table]*fromTable),
 		selects: &sqls.Segment{
-			Header: "SELECT",
+			Prefix: "SELECT",
 			Raw:    "#join('#column', ', ')",
 		},
 		touches: &sqls.Segment{
-			Header: "",
+			Prefix: "",
 			Raw:    "#join('#segment', ', ')",
 		},
 		conditions: &sqls.Segment{
-			Header: "WHERE",
+			Prefix: "WHERE",
 			Raw:    "#join('#segment', ' AND ')",
 		},
 		orders: &sqls.Segment{
-			Header: "ORDER BY",
+			Prefix: "ORDER BY",
 			Raw:    "#join('#segment', ', ')",
 		},
 		groupbys: &sqls.Segment{
-			Header: "GROUP BY",
+			Prefix: "GROUP BY",
 			Raw:    "#join('#segment', ', ')",
 		},
 	}
@@ -137,28 +137,28 @@ func (b *QueryBuilder) GroupBy(column *sqls.TableColumn, args ...any) *QueryBuil
 // Union unions other query builders, the type of query builders can be
 // *QueryBuilder or any other extended *QueryBuilder types (structs with
 // *QueryBuilder embedded.)
-func (b *QueryBuilder) Union(builders ...sqls.Builder) *QueryBuilder {
+func (b *QueryBuilder) Union(builders ...Builder) *QueryBuilder {
 	b.unions = append(b.unions, builders...)
 	return b
 }
 
 // From set the from table.
-func (b *QueryBuilder) From(t sqls.Table) *QueryBuilder {
-	if t[1] == "" {
-		b.pushError(fmt.Errorf("join table alias is empty"))
+func (b *QueryBuilder) From(name, alias sqls.Table) *QueryBuilder {
+	if name == "" || alias == "" {
+		b.pushError(fmt.Errorf("join table name or alias is empty"))
 		return b
 	}
-	tableAndAlias := t[1]
-	if t[0] != "" {
-		tableAndAlias = t[0] + " AS " + tableAndAlias
+	tableAndAlias := string(name)
+	if alias != "" {
+		tableAndAlias = tableAndAlias + " AS " + string(alias)
 	}
 	if len(b.tableNames) == 0 {
-		b.tableNames = append(b.tableNames, t)
+		b.tableNames = append(b.tableNames, alias)
 	} else {
-		b.tableNames[0] = t
+		b.tableNames[0] = alias
 	}
-	b.tablesByName[t] = &fromTable{
-		Table: t,
+	b.tablesByName[alias] = &fromTable{
+		Table: alias,
 		Segment: &sqls.Segment{
 			Raw: tableAndAlias,
 		},

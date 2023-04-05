@@ -101,33 +101,24 @@ func (b *QueryBuilder) buildCTEs(argStore *[]any, dep map[sqls.Table]bool) (stri
 	}
 	clauses := make([]string, 0, len(b.commonTableExprs))
 	for _, cte := range b.commonTableExprs {
-		table, ok := b.tablesByName[cte.table]
+		table, ok := b.tablesByName[cte.alias]
 		if !ok {
 			// the join clause refers to the CTE may be replaced
 			continue
 		}
-		if b.distinct && table.Optional && !dep[cte.table] {
+		if b.distinct && table.Optional && !dep[cte.alias] {
 			continue
 		}
 		query, err := cte.BuildTo(argStore)
 		if err != nil {
-			return "", fmt.Errorf("build subquery '%s': %w", cte.table, err)
+			return "", fmt.Errorf("build subquery '%s (%s)': %w", cte.name, cte.alias, err)
 		}
 		if query == "" {
 			continue
 		}
-		// cte.table[0]=="":
-		// WITH alias AS (...) ... FROM alias ...
-		//
-		// cte.table[0]!="":
-		// WITH table_name AS (...) ... FROM table_name alias ...
-		name := cte.table[0]
-		if cte.table[0] == "" {
-			name = cte.table[1]
-		}
 		clauses = append(clauses, fmt.Sprintf(
 			"%s AS (%s)",
-			name, query,
+			cte.name, query,
 		))
 	}
 	if len(clauses) == 0 {
@@ -138,9 +129,9 @@ func (b *QueryBuilder) buildCTEs(argStore *[]any, dep map[sqls.Table]bool) (stri
 
 func (b *QueryBuilder) buildSelects(argStore *[]any, s *sqls.Segment) (string, error) {
 	if b.distinct {
-		s.Header = "SELECT DISTINCT"
+		s.Prefix = "SELECT DISTINCT"
 	} else {
-		s.Header = "SELECT"
+		s.Prefix = "SELECT"
 	}
 	sel, err := s.BuildTo(argStore)
 	if err != nil {

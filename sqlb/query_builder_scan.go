@@ -43,7 +43,7 @@ func (b *QueryBuilder) scan(scanner QueryScanner, fn scanFunc) ([]any, error) {
 		query, err = b.buildInternal(&args, b.selects)
 	} else {
 		query, err = b.buildInternal(&args, &sqls.Segment{
-			Header:  "SELECT",
+			Prefix:  "SELECT",
 			Raw:     "#join('#c', ', ')",
 			Columns: selects,
 		})
@@ -88,7 +88,7 @@ func (b *blackhole) Scan(_ any) error { return nil }
 func (b *QueryBuilder) Count(columns ...*sqls.TableColumn) (count int64, err error) {
 	args := make([]any, 0)
 	query, err := b.buildInternal(&args, &sqls.Segment{
-		Header:  "SELECT",
+		Prefix:  "SELECT",
 		Raw:     "#join('#c', ', ')",
 		Columns: columns,
 	})

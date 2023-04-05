@@ -9,7 +9,7 @@ import (
 
 func TestBuildSegment(t *testing.T) {
 	t.Parallel()
-	table := sqls.Table{"table", "t"}
+	var table, alias sqls.Table = "table", "t"
 	testCases := []struct {
 		segment  *sqls.Segment
 		want     string
@@ -40,7 +40,7 @@ func TestBuildSegment(t *testing.T) {
 		{
 			segment: &sqls.Segment{
 				Raw:     "WHERE #c1=?",
-				Columns: table.Columns("id"),
+				Columns: alias.Columns("id"),
 				Args:    []any{nil},
 			},
 			want:     "WHERE t.id=?",
@@ -58,7 +58,7 @@ func TestBuildSegment(t *testing.T) {
 		{
 			segment: &sqls.Segment{
 				Raw:     "#c1>1",
-				Columns: table.Columns("id"),
+				Columns: alias.Columns("id"),
 				Args:    nil,
 			},
 			want:     "t.id>1",
@@ -67,7 +67,7 @@ func TestBuildSegment(t *testing.T) {
 		{
 			segment: &sqls.Segment{
 				Raw:     "#c2 IS NULL AND #c1>$1",
-				Columns: table.Columns("id", "deleted"),
+				Columns: alias.Columns("id", "deleted"),
 				Args:    []any{1},
 			},
 			want:     "t.deleted IS NULL AND t.id>$1",
@@ -76,7 +76,7 @@ func TestBuildSegment(t *testing.T) {
 		{
 			segment: &sqls.Segment{
 				Raw:     "#c1>$1",
-				Columns: table.Columns("id"),
+				Columns: alias.Columns("id"),
 				Args:    []any{1},
 			},
 			want:     "t.id>$1",
@@ -85,7 +85,7 @@ func TestBuildSegment(t *testing.T) {
 		{
 			segment: &sqls.Segment{
 				Raw:     "#c1 IN ($2,$1)",
-				Columns: table.Columns("id"),
+				Columns: alias.Columns("id"),
 				Args:    []any{1, 2},
 			},
 			want:     "t.id IN ($1,$2)",
@@ -95,7 +95,7 @@ func TestBuildSegment(t *testing.T) {
 			segment: &sqls.Segment{
 				Raw: "#c1",
 				Columns: []*sqls.TableColumn{
-					table.Expression("#t1.id=$1", 1),
+					alias.Expression("#t1.id=$1", 1),
 				},
 			},
 			want:     "t.id=$1",
@@ -105,7 +105,7 @@ func TestBuildSegment(t *testing.T) {
 			segment: &sqls.Segment{
 				Raw: "#c1 > $1",
 				Columns: []*sqls.TableColumn{
-					table.Expression("#t1.id - $1", 1),
+					alias.Expression("#t1.id - $1", 1),
 				},
 				Args: []any{2},
 			},
@@ -114,31 +114,34 @@ func TestBuildSegment(t *testing.T) {
 		},
 		{
 			segment: &sqls.Segment{
-				Raw: "WITH t AS (#s1) SELECT #c1,#c2,$1 FROM #tAs1",
+				Raw: "WITH t AS (#s1) SELECT #c1,#c2,$1 FROM #t1 AS #t2 ",
 				Segments: []*sqls.Segment{
 					{
-						Raw:     "SELECT * FROM #tAs1 WHERE #c1 > $1",
-						Columns: table.Columns("id"),
+						Raw:     "SELECT * FROM #t1 AS #t2 WHERE #c1 > $1",
+						Columns: alias.Columns("id"),
+						Tables:  []sqls.Table{table, alias},
 						Args:    []any{1},
 					},
 				},
 				Columns: []*sqls.TableColumn{
-					table.Expression("#t1.id"),
-					table.Expression("#t1.id=$1", 2),
+					alias.Column("id"),
+					alias.Expression("#t1.id=$1", 2),
 				},
-				Args: []any{"foo"},
+				Tables: []sqls.Table{table, alias},
+				Args:   []any{"foo"},
 			},
 			want:     "WITH t AS (SELECT * FROM table AS t WHERE t.id > $1) SELECT t.id,t.id=$2,$3 FROM table AS t",
 			wantArgs: []any{1, 2, "foo"},
 		},
 		{
 			segment: &sqls.Segment{
-				Raw: "SELECT #join('#c', ', ') FROM #tAs1",
+				Raw: "SELECT #join('#c', ', ') FROM #t1 AS #t2 ",
 				Columns: []*sqls.TableColumn{
-					table.Expression("#t1.id"),
-					table.Expression("#t1.id=$1", 1),
-					table.Expression("#t1.name"),
+					alias.Column("id"),
+					alias.Expression("#t1.id=$1", 1),
+					alias.Column("name"),
 				},
+				Tables: []sqls.Table{table, alias},
 			},
 			want:     "SELECT t.id, t.id=$1, t.name FROM table AS t",
 			wantArgs: []any{1},
@@ -147,8 +150,8 @@ func TestBuildSegment(t *testing.T) {
 			segment: &sqls.Segment{
 				Raw:      "#s1",
 				Segments: []*sqls.Segment{nil},
-				Header:   "WHERE",
-				Footer:   "FOR UPDATE",
+				Prefix:   "WHERE",
+				Suffix:   "FOR UPDATE",
 			},
 			want:     "",
 			wantArgs: []any{},
@@ -159,12 +162,12 @@ func TestBuildSegment(t *testing.T) {
 				Segments: []*sqls.Segment{
 					{
 						Raw:     "#c1=$1",
-						Columns: table.Columns("id"),
+						Columns: alias.Columns("id"),
 						Args:    []any{1},
 					},
 				},
-				Header: "WHERE",
-				Footer: "FOR UPDATE",
+				Prefix: "WHERE",
+				Suffix: "FOR UPDATE",
 			},
 			want:     "WHERE t.id=$1 FOR UPDATE",
 			wantArgs: []any{1},

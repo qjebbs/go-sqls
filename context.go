@@ -2,193 +2,91 @@ package sqls
 
 import (
 	"fmt"
-	"strconv"
 
 	"git.qjebbs.com/jebbs/go-sqls/syntax"
 )
 
+// context is the context for building.
 type context struct {
-	*globalContext
-	*perSegmentContext
+	Global  *contextGlobal
+	Current *contextCurrent
 }
 
-// Func is the type of function that can be registered to context.
-type Func func(ctx *context, args ...string) (string, error)
-
-func newContext(argStore *[]any, s *Segment) *context {
-	return (&context{
-		globalContext: &globalContext{
-			argStore: argStore,
-			funcMap: map[string]Func{
-				"join":    join,
-				"$":       argumentDollar,
-				"?":       argumentQuestion,
-				"c":       column,
-				"col":     column,
-				"column":  column,
-				"t":       table,
-				"table":   table,
-				"tAs":     tableNameAndAlias,
-				"s":       segment,
-				"seg":     segment,
-				"segment": segment,
-			},
+// newContext returns a new context.
+func newContext(argStore *[]any) *context {
+	return &context{
+		Global: &contextGlobal{
+			ArgStore: argStore,
+			FuncMap:  builtInFuncs,
 		},
-	}).newContextForSegment(s)
+	}
 }
 
-func (c *context) newContextForSegment(s *Segment) *context {
+// WithSegment returns a new context with the given segment.
+func (c *context) WithSegment(s *Segment) *context {
 	if s == nil {
-		return c
+		return nil
 	}
 	return &context{
-		globalContext: c.globalContext,
-		perSegmentContext: &perSegmentContext{
-			s:             s,
-			argsCache:     make([]string, len(s.Args)),
-			columnsCache:  make([]string, len(s.Columns)),
-			segmentsCache: make([]string, len(s.Segments)),
-			columnsUsed:   make([]bool, len(s.Columns)),
-			segmentsUsed:  make([]bool, len(s.Segments)),
+		Global: c.Global,
+		Current: &contextCurrent{
+			Segment:       s,
+			ArgsBuilt:     make([]string, len(s.Args)),
+			ColumnsBuilt:  make([]string, len(s.Columns)),
+			TableUsed:     make([]bool, len(s.Tables)),
+			SegmentsBuilt: make([]string, len(s.Segments)),
+			ArgsUsed:      make([]bool, len(s.Args)),
+			ColumnsUsed:   make([]bool, len(s.Columns)),
+			SegmentsUsed:  make([]bool, len(s.Segments)),
 		},
 	}
 }
 
-func (c *context) newContextForColumn(col *TableColumn) *context {
-	if col == nil {
-		return c
-	}
-	return &context{
-		globalContext: c.globalContext,
-		perSegmentContext: &perSegmentContext{
-			s:         &Segment{Args: col.Args},
-			argsCache: make([]string, len(col.Args)),
-		},
-	}
+// contextGlobal is the global context shared between all segments building.
+type contextGlobal struct {
+	ArgStore *[]any                  // args store
+	FuncMap  map[string]preprocessor // func map
+
+	BindVarStyle syntax.RefType // bindvar style
+	FirstBindvar string         // first bindvar seen
 }
 
-type globalContext struct {
-	argStore *[]any
-	funcMap  map[string]Func
+// contextCurrent is the context for current segment building.
+type contextCurrent struct {
+	Segment *Segment // current segment
 
-	bindVarStyle    syntax.RefType
-	firstBindvar    string
-	firstBindvarPos syntax.Pos
+	ArgsBuilt     []string // cache of built args
+	ColumnsBuilt  []string // cache of built columns
+	SegmentsBuilt []string // cache of built segments
+
+	ArgsUsed     []bool // flags to indicate if an arg is used
+	ColumnsUsed  []bool // flags to indicate if a column is used
+	TableUsed    []bool // flag to indicate if a table is used
+	SegmentsUsed []bool // flags to indicate if a segment is used
 }
 
-type perSegmentContext struct {
-	s *Segment
-
-	argsCache     []string
-	columnsCache  []string
-	segmentsCache []string
-
-	columnsUsed  []bool
-	segmentsUsed []bool
-}
-
-func (c *perSegmentContext) Arg(ctx *context, index int) (string, error) {
-	if index > len(c.s.Args) {
-		return "", fmt.Errorf("invalid bindvar index %d", index)
+func (c *contextCurrent) checkUsage() error {
+	if c == nil {
+		return nil
 	}
-	i := index - 1
-	built := c.argsCache[i]
-	if built == "" || ctx.bindVarStyle == syntax.ArgUnindexed {
-		*ctx.argStore = append(*ctx.argStore, c.s.Args[i])
-		if ctx.bindVarStyle == syntax.ArgUnindexed {
-			built = "?"
-		} else {
-			built = "$" + strconv.Itoa(len(*ctx.argStore))
-		}
-		c.argsCache[i] = built
-	}
-	return built, nil
-}
-
-func (c *perSegmentContext) Column(ctx *context, index int) (string, error) {
-	if index > len(c.s.Columns) {
-		return "", fmt.Errorf("invalid column index %d", index)
-	}
-	i := index - 1
-	col := c.s.Columns[i]
-	built := c.columnsCache[i]
-	if built == "" || (ctx.bindVarStyle == syntax.ArgUnindexed && len(col.Args) > 0) {
-		b, err := col.buildInternal(ctx.newContextForColumn(col))
-		if err != nil {
-			return "", err
-		}
-		c.columnsCache[i] = b
-		c.columnsUsed[i] = true
-		built = b
-	}
-	return built, nil
-}
-
-func (c *perSegmentContext) Table(ctx *context, index int) (string, error) {
-	c.columnsUsed[index-1] = true
-	if index > len(c.s.Columns) {
-		return "", fmt.Errorf("invalid table index %d", index)
-	}
-	return c.s.Columns[index-1].Table.String(), nil
-}
-
-func (c *perSegmentContext) TableAndAaias(ctx *context, index int) (string, error) {
-	c.columnsUsed[index-1] = true
-	if index > len(c.s.Columns) {
-		return "", fmt.Errorf("invalid table index %d", index)
-	}
-	t := c.s.Columns[index-1].Table
-	if t[0] == "" {
-		return "", fmt.Errorf("empty table name at %d", index)
-	}
-	if t[1] == "" {
-		return t[0], nil
-	}
-	return t[0] + " AS " + t[1], nil
-}
-
-func (c *perSegmentContext) Segment(ctx *context, index int) (string, error) {
-	if index > len(c.s.Segments) {
-		return "", fmt.Errorf("invalid segment index %d", index)
-	}
-	i := index - 1
-	seg := c.s.Segments[i]
-	built := c.segmentsCache[i]
-	if built == "" || (ctx.bindVarStyle == syntax.ArgUnindexed && len(seg.Args) > 0) {
-		b, err := seg.buildInternal(ctx.newContextForSegment(seg))
-		if err != nil {
-			return "", err
-		}
-		c.segmentsCache[i] = b
-		c.segmentsUsed[i] = true
-		built = b
-	}
-	return built, nil
-}
-
-func (c *perSegmentContext) checkUsage() error {
-	for i, v := range c.argsCache {
-		if v == "" {
+	for i, v := range c.ArgsUsed {
+		if !v {
 			return fmt.Errorf("arg %d is not used", i+1)
 		}
 	}
-	for i, v := range c.columnsUsed {
+	for i, v := range c.ColumnsUsed {
 		if !v {
 			return fmt.Errorf("column %d is not used", i+1)
 		}
 	}
-	for i, v := range c.segmentsUsed {
+	for i, v := range c.TableUsed {
 		if !v {
-			return fmt.Errorf("segment %d is not used", i+1)
+			return fmt.Errorf("table %d is not used", i+1)
 		}
 	}
-	return nil
-}
-
-func (c *perSegmentContext) checkArgUsage() error {
-	for i, v := range c.argsCache {
-		if v == "" {
-			return fmt.Errorf("arg %d is not used", i+1)
+	for i, v := range c.SegmentsUsed {
+		if !v {
+			return fmt.Errorf("segment %d is not used", i+1)
 		}
 	}
 	return nil

@@ -8,9 +8,26 @@ import (
 	"git.qjebbs.com/jebbs/go-sqls/syntax"
 )
 
+// preprocessor is the type of preprocessing functions.
+type preprocessor func(ctx *context, args ...string) (string, error)
+
+var builtInFuncs = map[string]preprocessor{
+	"join":    join,
+	"$":       argumentDollar,
+	"?":       argumentQuestion,
+	"c":       column,
+	"col":     column,
+	"column":  column,
+	"t":       table,
+	"table":   table,
+	"s":       segment,
+	"seg":     segment,
+	"segment": segment,
+}
+
 func join(ctx *context, args ...string) (string, error) {
 	if len(args) != 2 {
-		return "", argError("column(tmpl, sep string)", args)
+		return "", argError("join(tmpl, sep string)", args)
 	}
 	tmpl, separator := args[0], args[1]
 	c, err := syntax.Parse(tmpl)
@@ -23,6 +40,9 @@ func join(ctx *context, args ...string) (string, error) {
 		nRefs        int
 		calls        []*syntax.FuncCallExpr
 	)
+	nArgs := len(ctx.Current.Segment.Args)
+	nColumns := len(ctx.Current.Segment.Columns)
+	nSegments := len(ctx.Current.Segment.Segments)
 	for i, expr := range c.ExprList {
 		fn, ok := expr.(*syntax.FuncExpr)
 		if !ok {
@@ -37,24 +57,26 @@ func join(ctx *context, args ...string) (string, error) {
 		case "$", "?":
 			if firstRefType == "" {
 				firstRefType = "arg(s)"
-				nRefs = len(ctx.s.Args)
-			} else if nRefs != len(ctx.s.Args) {
-				return "", fmt.Errorf("unaligned references %d '%s' to %d arg(s)", nRefs, firstRefType, len(ctx.s.Args))
+				nRefs = nArgs
+			} else if nRefs != nArgs {
+				return "", fmt.Errorf("unaligned references %d '%s' to %d arg(s)", nRefs, firstRefType, nArgs)
 			}
 		case "c", "col", "column",
-			"t", "table":
+			"tn", "tableName",
+			"t", "ta", "tableAlias",
+			"tna", "tableNameAlias":
 			if firstRefType == "" {
 				firstRefType = "columns(s)"
-				nRefs = len(ctx.s.Columns)
-			} else if nRefs != len(ctx.s.Columns) {
-				return "", fmt.Errorf("unaligned references %d '%s' to %d columns(s)", nRefs, firstRefType, len(ctx.s.Columns))
+				nRefs = nColumns
+			} else if nRefs != nColumns {
+				return "", fmt.Errorf("unaligned references %d '%s' to %d columns(s)", nRefs, firstRefType, nColumns)
 			}
 		case "s", "seg", "segment":
 			if firstRefType == "" {
 				firstRefType = "segment(s)"
-				nRefs = len(ctx.s.Segments)
-			} else if nRefs != len(ctx.s.Segments) {
-				return "", fmt.Errorf("unaligned references %d '%s' to %d segment(s)", nRefs, firstRefType, len(ctx.s.Segments))
+				nRefs = nSegments
+			} else if nRefs != nSegments {
+				return "", fmt.Errorf("unaligned references %d '%s' to %d segment(s)", nRefs, firstRefType, nSegments)
 			}
 		}
 	}
@@ -62,17 +84,19 @@ func join(ctx *context, args ...string) (string, error) {
 		return "", fmt.Errorf("no references found in enum template '%s'", tmpl)
 	}
 	for i := 0; i < nRefs; i++ {
-		if i > 0 {
-			b.WriteString(separator)
-		}
 		for _, call := range calls {
 			call.Args = []string{strconv.Itoa(i + 1)}
 		}
-		s, err := build(ctx, c)
+		s, err := buildCluase(ctx, c)
 		if err != nil {
 			return "", err
 		}
-		b.WriteString(s)
+		if s != "" {
+			if i > 0 {
+				b.WriteString(separator)
+			}
+			b.WriteString(s)
+		}
 	}
 	return b.String(), nil
 }
@@ -86,15 +110,15 @@ func argumentQuestion(ctx *context, args ...string) (string, error) {
 }
 
 func arg(ctx *context, typ syntax.RefType, args ...string) (string, error) {
-	if ctx.bindVarStyle == "" {
-		ctx.bindVarStyle = typ
-		ctx.firstBindvar = ctx.s.Raw
+	if ctx.Global.BindVarStyle == "" {
+		ctx.Global.BindVarStyle = typ
+		ctx.Global.FirstBindvar = ctx.Current.Segment.Raw
 	}
-	if ctx.bindVarStyle != typ {
-		return "", fmt.Errorf("mixed bindvar styles between segments '%s' and '%s'", ctx.firstBindvar, ctx.s.Raw)
+	if ctx.Global.BindVarStyle != typ {
+		return "", fmt.Errorf("mixed bindvar styles between segments '%s' and '%s'", ctx.Global.FirstBindvar, ctx.Current.Segment.Raw)
 	}
 	if len(args) != 1 {
-		switch ctx.bindVarStyle {
+		switch ctx.Global.BindVarStyle {
 		case syntax.ArgIndexed:
 			return "", argError("$(i int)", args)
 		default:
@@ -105,7 +129,7 @@ func arg(ctx *context, typ syntax.RefType, args ...string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("invalid arg index '%s': %w", args[0], err)
 	}
-	return ctx.Arg(ctx, i)
+	return buildArg(ctx, i)
 }
 
 func column(ctx *context, args ...string) (string, error) {
@@ -116,29 +140,18 @@ func column(ctx *context, args ...string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("invalid index '%s': %w", args[0], err)
 	}
-	return ctx.Column(ctx, i)
+	return buildColumn(ctx, i)
 }
 
 func table(ctx *context, args ...string) (string, error) {
 	if len(args) != 1 {
-		return "", argError("table(i int)", args)
+		return "", argError("tableName(i int)", args)
 	}
 	i, err := strconv.Atoi(args[0])
 	if err != nil {
 		return "", fmt.Errorf("invalid index '%s': %w", args[0], err)
 	}
-	return ctx.Table(ctx, i)
-}
-
-func tableNameAndAlias(ctx *context, args ...string) (string, error) {
-	if len(args) != 1 {
-		return "", argError("tableNameAndAlias(i int)", args)
-	}
-	i, err := strconv.Atoi(args[0])
-	if err != nil {
-		return "", fmt.Errorf("invalid index '%s': %w", args[0], err)
-	}
-	return ctx.TableAndAaias(ctx, i)
+	return buildTable(ctx, i)
 }
 
 func segment(ctx *context, args ...string) (string, error) {
@@ -149,7 +162,7 @@ func segment(ctx *context, args ...string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("invalid index '%s': %w", args[0], err)
 	}
-	return ctx.Segment(ctx, i)
+	return buildSegment(ctx, i)
 }
 
 func argError(sig string, args any) error {
