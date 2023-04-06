@@ -44,9 +44,8 @@ func (t Table) Columns(names ...string) []*TableColumn {
 	return r
 }
 
-// Expression returns a column of the table from the expression which
-// accepts bindvars and the preprocessor #t1 (name), #t1  (alias), which
-// are implicit in "*TableColumn.Table".
+// Expression returns a column of the table from the expression it
+// accepts bindvars and the preprocessor #t1 which is implicit in t.
 //
 // For example:
 //
@@ -64,9 +63,8 @@ func (t Table) Expression(expression string, args ...any) *TableColumn {
 	}
 }
 
-// Expressions returns columns of the table from the expression, which
-// accepts bindvars and the preprocessor #t1 (name), #t1  (alias) which
-// are implicit in "*TableColumn.Table".
+// Expressions returns columns of the table from the expression, it
+// accepts bindvars and the preprocessor #t1 which is implicit in t.
 //
 // For example:
 //

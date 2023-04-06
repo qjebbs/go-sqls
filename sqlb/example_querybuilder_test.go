@@ -12,10 +12,7 @@ func ExampleQueryBuilder() {
 		GetUsers()
 }
 
-var (
-	TableUsers      sqls.Table = "users"
-	TableUsersAlias sqls.Table = "u"
-)
+var TableUsers = sqlb.NewTable("users", "u")
 
 type User struct {
 	ID    int64
@@ -33,10 +30,10 @@ type UserQueryBuilder struct {
 func NewUserQueryBuilder(db sqlb.QueryAble) *UserQueryBuilder {
 	b := sqlb.NewQueryBuilder(db).
 		Distinct().
-		From(TableUsers, TableUsersAlias)
+		From(TableUsers)
 	// b.InnerJoin( /*...*/ ).
 	// 	LeftJoin( /*...*/ ).
-	// 	LeftJoin( /*...*/ )
+	// 	LeftJoinOptional( /*...*/ )
 	return &UserQueryBuilder{b}
 }
 
@@ -44,7 +41,7 @@ func NewUserQueryBuilder(db sqlb.QueryAble) *UserQueryBuilder {
 func (b *UserQueryBuilder) WhereMatches(keyword string) *UserQueryBuilder {
 	b.Where(&sqls.Segment{
 		Raw:     "(#c1 like '%' || $1 || '%' OR #c2 like '%' || $1 || '%')",
-		Columns: TableUsersAlias.Columns("name", "email"),
+		Columns: TableUsers.Columns("name", "email"),
 		Args:    []any{keyword},
 	})
 	return b
@@ -64,7 +61,7 @@ type userScanner struct{}
 
 // Select tells *QueryBuilder which columns to select
 func (s *userScanner) Select() []*sqls.TableColumn {
-	return TableUsersAlias.Columns("id", "name", "email")
+	return TableUsers.Columns("id", "name", "email")
 }
 
 // NewTarget create a new *User for scanning

@@ -6,14 +6,39 @@ import (
 	"git.qjebbs.com/jebbs/go-sqls"
 )
 
+// From set the from table.
+func (b *QueryBuilder) From(t Table) *QueryBuilder {
+	if t.Name == "" {
+		b.pushError(fmt.Errorf("from table is empty"))
+		return b
+	}
+	tableAndAlias := string(t.Name)
+	if t.Alias != "" {
+		tableAndAlias = tableAndAlias + " AS " + string(t.Alias)
+	}
+	if len(b.tables) == 0 {
+		b.tables = append(b.tables, t)
+	} else {
+		b.tables[0] = t
+	}
+	b.appliedNames[t.AppliedName()] = t
+	b.froms[t] = &fromTable{
+		Segment: &sqls.Segment{
+			Raw: tableAndAlias,
+		},
+		Optional: false,
+	}
+	return b
+}
+
 // InnerJoin append a inner join table.
-func (b *QueryBuilder) InnerJoin(name, alias sqls.Table, on *sqls.Segment) *QueryBuilder {
-	return b.join("INNER JOIN", name, alias, on, false)
+func (b *QueryBuilder) InnerJoin(t Table, on *sqls.Segment) *QueryBuilder {
+	return b.join("INNER JOIN", t, on, false)
 }
 
 // LeftJoin append / replace a left join table.
-func (b *QueryBuilder) LeftJoin(name, alias sqls.Table, on *sqls.Segment) *QueryBuilder {
-	return b.join("LEFT JOIN", name, alias, on, false)
+func (b *QueryBuilder) LeftJoin(t Table, on *sqls.Segment) *QueryBuilder {
+	return b.join("LEFT JOIN", t, on, false)
 }
 
 // LeftJoinOptional append / replace a left join table, and mark it as optional.
@@ -34,45 +59,51 @@ func (b *QueryBuilder) LeftJoin(name, alias sqls.Table, on *sqls.Segment) *Query
 // They return the same result, but the second query more efficient.
 // If the join to "bar" is declared with LeftJoinOptional(), *QueryBuilder
 // will trim it if no relative columns referenced in the query, aka Join Elimination.
-func (b *QueryBuilder) LeftJoinOptional(name, alias sqls.Table, on *sqls.Segment) *QueryBuilder {
-	return b.join("LEFT JOIN", name, alias, on, true)
+func (b *QueryBuilder) LeftJoinOptional(t Table, on *sqls.Segment) *QueryBuilder {
+	return b.join("LEFT JOIN", t, on, true)
 }
 
 // RightJoin append / replace a right join table.
-func (b *QueryBuilder) RightJoin(name, alias sqls.Table, on *sqls.Segment) *QueryBuilder {
-	return b.join("RIGHT JOIN", name, alias, on, false)
+func (b *QueryBuilder) RightJoin(t Table, on *sqls.Segment) *QueryBuilder {
+	return b.join("RIGHT JOIN", t, on, false)
 }
 
 // FullJoin append / replace a full join table.
-func (b *QueryBuilder) FullJoin(name, alias sqls.Table, on *sqls.Segment) *QueryBuilder {
-	return b.join("FULL JOIN", name, alias, on, false)
+func (b *QueryBuilder) FullJoin(t Table, on *sqls.Segment) *QueryBuilder {
+	return b.join("FULL JOIN", t, on, false)
 }
 
 // CrossJoin append / replace a cross join table.
-func (b *QueryBuilder) CrossJoin(name, alias sqls.Table) *QueryBuilder {
-	return b.join("CROSS JOIN", name, alias, nil, false)
+func (b *QueryBuilder) CrossJoin(t Table) *QueryBuilder {
+	return b.join("CROSS JOIN", t, nil, false)
 }
 
 // From append or replace a from table.
-func (b *QueryBuilder) join(joinStr string, name, alias sqls.Table, on *sqls.Segment, optional bool) *QueryBuilder {
-	if name == "" || alias == "" {
-		b.pushError(fmt.Errorf("join table name or alias is empty"))
+func (b *QueryBuilder) join(joinStr string, t Table, on *sqls.Segment, optional bool) *QueryBuilder {
+	if t.Name == "" {
+		b.pushError(fmt.Errorf("join table name is empty"))
 		return b
 	}
-	if _, ok := b.tablesByName[alias]; !ok {
-		if len(b.tableNames) == 0 {
-			// reserve the first alias for the main table
-			b.tableNames = append(b.tableNames, "")
+	if _, ok := b.froms[t]; ok {
+		if t.Alias == "" {
+			b.pushError(fmt.Errorf("table [%s] is already joined", t.Name))
+			return b
 		}
-		b.tableNames = append(b.tableNames, alias)
+		b.pushError(fmt.Errorf("table [%s AS %s] is already joined", t.Name, t.Alias))
+		return b
 	}
-	tableAndAlias := name
-	if alias != "" {
-		tableAndAlias = tableAndAlias + " AS " + alias
+	if len(b.tables) == 0 {
+		// reserve the first alias for the main table
+		b.tables = append(b.tables, Table{})
+	}
+	b.tables = append(b.tables, t)
+	b.appliedNames[t.AppliedName()] = t
+	tableAndAlias := t.Name
+	if t.Alias != "" {
+		tableAndAlias = tableAndAlias + " AS " + t.Alias
 	}
 	if on == nil || on.Raw == "" {
-		b.tablesByName[alias] = &fromTable{
-			Table: alias,
+		b.froms[t] = &fromTable{
 			Segment: &sqls.Segment{
 				Raw: fmt.Sprintf("%s %s", joinStr, tableAndAlias),
 			},
@@ -80,8 +111,7 @@ func (b *QueryBuilder) join(joinStr string, name, alias sqls.Table, on *sqls.Seg
 		}
 		return b
 	}
-	b.tablesByName[alias] = &fromTable{
-		Table: alias,
+	b.froms[t] = &fromTable{
 		Segment: &sqls.Segment{
 			Raw:      fmt.Sprintf("%s %s ON %s", joinStr, tableAndAlias, on.Raw),
 			Segments: on.Segments,

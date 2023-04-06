@@ -95,30 +95,25 @@ func (b *QueryBuilder) buildInternal(argStore *[]any, selects *sqls.Segment) (st
 	return strings.TrimSpace(query + " " + union), nil
 }
 
-func (b *QueryBuilder) buildCTEs(argStore *[]any, dep map[sqls.Table]bool) (string, error) {
-	if len(b.commonTableExprs) == 0 {
+func (b *QueryBuilder) buildCTEs(argStore *[]any, dep map[Table]bool) (string, error) {
+	if len(b.ctes) == 0 {
 		return "", nil
 	}
-	clauses := make([]string, 0, len(b.commonTableExprs))
-	for _, cte := range b.commonTableExprs {
-		table, ok := b.tablesByName[cte.alias]
-		if !ok {
-			// the join clause refers to the CTE may be replaced
-			continue
-		}
-		if b.distinct && table.Optional && !dep[cte.alias] {
+	clauses := make([]string, 0, len(b.ctes))
+	for _, cte := range b.ctes {
+		if !dep[cte.table] {
 			continue
 		}
 		query, err := cte.BuildTo(argStore)
 		if err != nil {
-			return "", fmt.Errorf("build subquery '%s (%s)': %w", cte.name, cte.alias, err)
+			return "", fmt.Errorf("build CTE '%s': %w", cte.table, err)
 		}
 		if query == "" {
 			continue
 		}
 		clauses = append(clauses, fmt.Sprintf(
 			"%s AS (%s)",
-			cte.name, query,
+			cte.table.Name, query,
 		))
 	}
 	if len(clauses) == 0 {
@@ -150,10 +145,10 @@ func (b *QueryBuilder) buildSelects(argStore *[]any, s *sqls.Segment) (string, e
 	return sel + ", " + touches, nil
 }
 
-func (b *QueryBuilder) buildFrom(argStore *[]any, dep map[sqls.Table]bool) (string, error) {
-	tables := make([]string, 0, len(b.tableNames))
-	for _, t := range b.tableNames {
-		ft, ok := b.tablesByName[t]
+func (b *QueryBuilder) buildFrom(argStore *[]any, dep map[Table]bool) (string, error) {
+	tables := make([]string, 0, len(b.tables))
+	for _, t := range b.tables {
+		ft, ok := b.froms[t]
 		if !ok {
 			// should not happen
 			return "", fmt.Errorf("table '%s' not found", t)
@@ -161,7 +156,7 @@ func (b *QueryBuilder) buildFrom(argStore *[]any, dep map[sqls.Table]bool) (stri
 		if b.distinct && ft.Optional && !dep[t] {
 			continue
 		}
-		from := b.tablesByName[t]
+		from := b.froms[t]
 		c, err := from.Segment.BuildTo(argStore)
 		if err != nil {
 			return "", fmt.Errorf("build FROM '%s': %w", from.Segment.Raw, err)

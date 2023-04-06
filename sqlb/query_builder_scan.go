@@ -53,7 +53,8 @@ func (b *QueryBuilder) scan(scanner QueryScanner, fn scanFunc) ([]any, error) {
 	}
 	rows, err := b.db.Query(query, args...)
 	if err != nil {
-		return nil, err
+		query, _ := sqls.Interpolate(query, args...)
+		return nil, fmt.Errorf("%w: %s", err, query)
 	}
 	defer rows.Close()
 
@@ -101,7 +102,8 @@ func (b *QueryBuilder) Count(columns ...*sqls.TableColumn) (count int64, err err
 		return 0, nil
 	}
 	if err != nil {
-		return 0, fmt.Errorf("unable to count: %w", err)
+		query, _ := sqls.Interpolate(query, args...)
+		return 0, fmt.Errorf("%w: %s", err, query)
 	}
 	return count, nil
 }

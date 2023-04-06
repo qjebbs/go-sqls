@@ -7,7 +7,7 @@ import (
 	"git.qjebbs.com/jebbs/go-sqls/slices"
 )
 
-func (b *QueryBuilder) calcDependency(selects *sqls.Segment) (map[sqls.Table]bool, error) {
+func (b *QueryBuilder) calcDependency(selects *sqls.Segment) (map[Table]bool, error) {
 	columns := slices.Concat(
 		extractColumns(selects),
 		extractColumns(b.touches),
@@ -15,32 +15,44 @@ func (b *QueryBuilder) calcDependency(selects *sqls.Segment) (map[sqls.Table]boo
 		extractColumns(b.orders),
 		extractColumns(b.groupbys),
 	)
-	m := make(map[sqls.Table]bool)
+	m := make(map[Table]bool)
 	// first table is the main table and always included
-	m[b.tableNames[0]] = true
+	m[b.tables[0]] = true
 	for _, column := range columns {
 		err := b.markDependencies(m, column.Table)
 		if err != nil {
 			return nil, err
 		}
 	}
+	// mark for CTEs
+	for _, t := range b.tables {
+		if b.distinct && b.froms[t].Optional && !m[t] {
+			continue
+		}
+		// this could probably mark a CTE table that does not exists, but do no harm.
+		m[NewTable(t.Name, "")] = true
+	}
 	return m, nil
 }
 
-func (b *QueryBuilder) markDependencies(m map[sqls.Table]bool, t sqls.Table) error {
-	from, ok := b.tablesByName[t]
+func (b *QueryBuilder) markDependencies(dep map[Table]bool, t sqls.Table) error {
+	ta, ok := b.appliedNames[t]
+	if !ok {
+		return fmt.Errorf("table not found: '%s'", t)
+	}
+	from, ok := b.froms[ta]
 	if !ok {
 		return fmt.Errorf("from undefined: '%s'", t)
 	}
-	if m[t] {
+	if dep[ta] {
 		return nil
 	}
-	m[t] = true
+	dep[ta] = true
 	for _, column := range from.Segment.Columns {
 		if column.Table == t {
 			continue
 		}
-		err := b.markDependencies(m, column.Table)
+		err := b.markDependencies(dep, t)
 		if err != nil {
 			return err
 		}

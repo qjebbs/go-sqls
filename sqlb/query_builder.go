@@ -15,9 +15,10 @@ var _ Builder = (*QueryBuilder)(nil)
 type QueryBuilder struct {
 	db QueryAble // the database connection
 
-	commonTableExprs []*namedSegment           // common table expressions
-	tableNames       []sqls.Table              // the table names
-	tablesByName     map[sqls.Table]*fromTable // the tables by name
+	ctes         []*cte               // common table expressions
+	froms        map[Table]*fromTable // the from tables by alias
+	tables       []Table              // the tables in order
+	appliedNames map[sqls.Table]Table // applied table name mapping, the name is alias, or name if alias is empty
 
 	selects    *sqls.Segment // select columns and keep values in scanning.
 	touches    *sqls.Segment // select columns but drop values in scanning.
@@ -41,7 +42,6 @@ type QueryAble interface {
 }
 
 type fromTable struct {
-	Table    sqls.Table
 	Segment  *sqls.Segment
 	Optional bool
 }
@@ -50,7 +50,8 @@ type fromTable struct {
 func NewQueryBuilder(db QueryAble) *QueryBuilder {
 	return &QueryBuilder{
 		db:           db,
-		tablesByName: make(map[sqls.Table]*fromTable),
+		froms:        map[Table]*fromTable{},
+		appliedNames: make(map[sqls.Table]Table),
 		selects: &sqls.Segment{
 			Prefix: "SELECT",
 			Raw:    "#join('#column', ', ')",
@@ -139,30 +140,5 @@ func (b *QueryBuilder) GroupBy(column *sqls.TableColumn, args ...any) *QueryBuil
 // *QueryBuilder embedded.)
 func (b *QueryBuilder) Union(builders ...Builder) *QueryBuilder {
 	b.unions = append(b.unions, builders...)
-	return b
-}
-
-// From set the from table.
-func (b *QueryBuilder) From(name, alias sqls.Table) *QueryBuilder {
-	if name == "" || alias == "" {
-		b.pushError(fmt.Errorf("join table name or alias is empty"))
-		return b
-	}
-	tableAndAlias := string(name)
-	if alias != "" {
-		tableAndAlias = tableAndAlias + " AS " + string(alias)
-	}
-	if len(b.tableNames) == 0 {
-		b.tableNames = append(b.tableNames, alias)
-	} else {
-		b.tableNames[0] = alias
-	}
-	b.tablesByName[alias] = &fromTable{
-		Table: alias,
-		Segment: &sqls.Segment{
-			Raw: tableAndAlias,
-		},
-		Optional: false,
-	}
 	return b
 }

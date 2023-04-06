@@ -9,25 +9,25 @@ import (
 
 func ExampleQueryBuilder_Build() {
 	var (
-		foo, fooAlias sqls.Table = "foo", "f"
-		bar, barAlias sqls.Table = "bar", "b"
+		foo = sqlb.NewTable("foo", "f")
+		bar = sqlb.NewTable("bar", "b")
 	)
 	query, args, err := sqlb.NewQueryBuilder(nil).
-		Select(fooAlias.Columns("*")).
-		From(foo, fooAlias).
-		InnerJoin(bar, barAlias, &sqls.Segment{
+		Select(foo.Columns("*")).
+		From(foo).
+		InnerJoin(bar, &sqls.Segment{
 			Raw: "#c1=#c2",
 			Columns: []*sqls.TableColumn{
-				barAlias.Column("foo_id"),
-				fooAlias.Column("id"),
+				bar.Column("foo_id"),
+				foo.Column("id"),
 			},
 		}).
 		Where(&sqls.Segment{
 			Raw:     "(#c1=$1 OR #c2=$2)",
-			Columns: fooAlias.Columns("a", "b"),
+			Columns: foo.Columns("a", "b"),
 			Args:    []any{1, 2},
 		}).
-		Where2(barAlias.Column("c"), "=", 3).
+		Where2(bar.Column("c"), "=", 3).
 		Build()
 	if err != nil {
 		panic(err)
@@ -41,23 +41,23 @@ func ExampleQueryBuilder_Build() {
 
 func ExampleQueryBuilder_LeftJoinOptional() {
 	var (
-		foo, fooAlias sqls.Table = "foo", "f"
-		bar, barAlias sqls.Table = "bar", "b"
+		foo = sqlb.NewTable("foo", "f")
+		bar = sqlb.NewTable("bar", "b")
 	)
 	query, args, err := sqlb.NewQueryBuilder(nil).
 		Distinct(). // *QueryBuilder trims optional joins only when SELECT DISTINCT is used.
-		Select(fooAlias.Columns("*")).
-		From(foo, fooAlias).
+		Select(foo.Columns("*")).
+		From(foo).
 		// declare an optional LEFT JOIN
-		LeftJoinOptional(bar, barAlias, &sqls.Segment{
+		LeftJoinOptional(bar, &sqls.Segment{
 			Raw: "#c1=#c2",
 			Columns: []*sqls.TableColumn{
-				barAlias.Column("foo_id"),
-				fooAlias.Column("id"),
+				bar.Column("foo_id"),
+				foo.Column("id"),
 			},
 		}).
 		// don't touch any columns of "bar", so that it can be trimmed
-		Where2(fooAlias.Column("id"), ">", 1).
+		Where2(foo.Column("id"), ">", 1).
 		Build()
 	if err != nil {
 		panic(err)
@@ -71,27 +71,27 @@ func ExampleQueryBuilder_LeftJoinOptional() {
 
 func ExampleQueryBuilder_With() {
 	var (
-		foo, fooAlias sqls.Table = "foo", "f"
-		bar, barAlias sqls.Table = "bar", "b"
-		cte, cteAlias sqls.Table = "bar_type_1", "b1"
+		foo = sqlb.NewTable("foo", "f")
+		bar = sqlb.NewTable("bar", "b")
+		cte = sqlb.NewTable("bar_type_1", "b1")
 	)
 	query, args, err := sqlb.NewQueryBuilder(nil).
-		With(cte, cteAlias, &sqls.Segment{
+		With(cte.Name, &sqls.Segment{
 			Raw:     "SELECT * FROM #t1 AS #t2 WHERE #c1=$1",
-			Columns: barAlias.Columns("type"),
+			Columns: bar.Columns("type"),
 			Args:    []any{1},
-			Tables:  []sqls.Table{bar, barAlias},
+			Tables:  bar.Names(),
 		}).
 		Select([]*sqls.TableColumn{
-			fooAlias.Column("*"),
-			cteAlias.Column("*"),
+			foo.Column("*"),
+			cte.Column("*"),
 		}).
-		From(foo, fooAlias).
-		LeftJoin(cte, cteAlias, &sqls.Segment{
+		From(foo).
+		LeftJoinOptional(cte, &sqls.Segment{
 			Raw: "#c1=#c2",
 			Columns: []*sqls.TableColumn{
-				cteAlias.Column("foo_id"),
-				fooAlias.Column("id"),
+				cte.Column("foo_id"),
+				foo.Column("id"),
 			},
 		}).
 		Build()
@@ -106,16 +106,16 @@ func ExampleQueryBuilder_With() {
 }
 
 func ExampleQueryBuilder_Union() {
-	var foo, fooAlias sqls.Table = "foo", "f"
-	columns := fooAlias.Columns("*")
+	var foo = sqlb.NewTable("foo", "f")
+	columns := foo.Columns("*")
 	query, args, err := sqlb.NewQueryBuilder(nil).
 		Select(columns).
-		From(foo, fooAlias).
-		Where2(fooAlias.Column("id"), " = ", 1).
+		From(foo).
+		Where2(foo.Column("id"), " = ", 1).
 		Union(
 			sqlb.NewQueryBuilder(nil).
-				From(foo, fooAlias).
-				WhereIn(fooAlias.Column("id"), []any{2, 3, 4}).
+				From(foo).
+				WhereIn(foo.Column("id"), []any{2, 3, 4}).
 				Select(columns),
 		).
 		Build()

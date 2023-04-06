@@ -14,11 +14,11 @@ func (b *QueryBuilder) anyError() error {
 		return nil
 	}
 	sb := new(strings.Builder)
-	sb.WriteString("collected errors: ")
+	sb.WriteString("collected errors: \n")
 	for _, err := range b.errors {
-		sb.WriteString(" * ")
+		sb.WriteString(" - ")
 		sb.WriteString(err.Error())
-		sb.WriteRune(';')
+		sb.WriteRune('\n')
 	}
 	return errors.New(sb.String())
 }
