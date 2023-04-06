@@ -3,7 +3,7 @@ of segments. Thus, it works naturally with all sql dialects without
 having to deal with the differences between them. Unlike any other
 sql builder or ORMs, Segment is the only concept you need to learn.
 
-# Segment
+## Segment
 
 Segment is the builder for a part of or even the full query, it allows you
 to write and combine segments with freedom.
@@ -18,7 +18,7 @@ plus preprocessing functions support:
 	SELECT * FROM foo WHERE id IN (?, ?, ?) AND #segment(1)
 	SELECT * FROM foo WHERE #join('#segment', ' AND ')
 
-# Preprocessing Functions
+## Preprocessing Functions
 
 | name            | description                        | example                    |
 | --------------- | ---------------------------------- | -------------------------- |
@@ -33,46 +33,43 @@ Note:
   - References in the #join template are functions, not function calls.
   - #c1 is equivalent to #c(1), which is a special syntax to call preprocessing functions when a number is the only argument.
 
-# Examples
+## Examples
 
-See [examples_test.go](./examples_test.go) for more examples.
+> See [example_test.go](./example_test.go) for more examples.
+
+In most cases, it's easy and flexible to create your own builder  for simple queries, with a few lines of code.
+
+<details>
 
 ```go
-func Example_select() {
-	t := sqls.Table{"users", ""}
-	selectFrom := &sqls.Segment{
+func Example_update() {
+	update := &sqls.Segment{
 		Prefix: "",
-		// join columns with ', '
-		Raw: "SELECT #join('#column', ', ') FROM users",
+		Raw:    "UPDATE #t1 SET #join('#c=#$', ', ')",
 	}
 	where := &sqls.Segment{
 		Prefix: "WHERE",
-		// join segments with ' AND '
-		Raw: "#join('#segment', ' AND ')",
+		Raw:    "#join('#segment', ' AND ')",
 	}
+	// consider wrapping it with your own builder 
+	// to provide a more friendly APIs
 	builder := &sqls.Segment{
-		// join segments with ' '
 		Raw: "#join('#segment', ' ')",
 		Segments: []*sqls.Segment{
-			selectFrom,
+			update,
 			where,
 		},
 	}
 
-	// select columns
-	selectFrom.AppendColumns(t.Columns("id", "name", "email")...)
-	// append WHERE condition 1
+	var users sqls.Table = "users"
+	update.WithTables(users)
+	update.WithColumns(users.Expressions("name", "email")...)
+	update.WithArgs("jebbs", "qjebbs@gmail.com")
+	// append as many conditions as you want
 	where.AppendSegments(&sqls.Segment{
-		// (#join('#?', ', ') is also supported
-		Raw:     "#c1 IN (#join('#$', ', '))",
-		Columns: t.Columns("id"),
-		Args:    []any{1, 2, 3},
-	})
-	// append WHERE condition 2
-	where.AppendSegments(&sqls.Segment{
-		Raw:     "#c1 = $1",
-		Columns: t.Columns("active"),
-		Args:    []any{true},
+		Raw:     "#c1=$1",
+		Columns: users.Expressions("id"),
+		Args:    []any{1},
 	})
 
 	bulit, args, err := builder.Build()
@@ -82,7 +79,47 @@ func Example_select() {
 	fmt.Println(bulit)
 	fmt.Println(args)
 	// Output:
-	// SELECT id, name, email FROM users WHERE id IN ($1, $2, $3) AND active = $4
-	// [1 2 3 true]
+	// UPDATE users SET name=$1, email=$2 WHERE id=$3
+	// [jebbs qjebbs@gmail.com 1]
 }
 ```
+</details>
+
+The repo also provides `*sqlb.QueryBuilder` for building complex queries.
+
+<details>
+
+```go
+func ExampleQueryBuilder_Build() {
+	var (
+		foo = sqlb.NewTable("foo", "f")
+		bar = sqlb.NewTable("bar", "b")
+	)
+	query, args, err := sqlb.NewQueryBuilder(nil).
+		Select(foo.Columns("*")).
+		From(foo).
+		InnerJoin(bar, &sqls.Segment{
+			Raw: "#c1=#c2",
+			Columns: []*sqls.TableColumn{
+				bar.Column("foo_id"),
+				foo.Column("id"),
+			},
+		}).
+		Where(&sqls.Segment{
+			Raw:     "(#c1=$1 OR #c2=$2)",
+			Columns: foo.Columns("a", "b"),
+			Args:    []any{1, 2},
+		}).
+		Where2(bar.Column("c"), "=", 3).
+		Build()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(query)
+	fmt.Println(args)
+	// Output:
+	// SELECT f.* FROM foo AS f INNER JOIN bar AS b ON b.foo_id=f.id WHERE (f.a=$1 OR f.b=$2) AND b.c=$3
+	// [1 2 3]
+}
+```
+</details>

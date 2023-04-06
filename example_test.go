@@ -77,7 +77,7 @@ func Example_update() {
 	update.WithColumns(users.Expressions("name", "email")...)
 	update.WithArgs("jebbs", "qjebbs@gmail.com")
 	// append as many conditions as you want
-	where.WithSegments(&sqls.Segment{
+	where.AppendSegments(&sqls.Segment{
 		Raw:     "#c1=$1",
 		Columns: users.Expressions("id"),
 		Args:    []any{1},
