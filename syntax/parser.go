@@ -21,7 +21,7 @@ type parser struct {
 	*scanner
 
 	argIndex int
-	argType  RefType
+	argType  BindVarType
 	// buf []token
 
 	c *Clause
@@ -76,34 +76,34 @@ func (p *parser) Parse() error {
 
 func (p *parser) refExpr() (Expr, error) {
 	pos := p.token.pos
-	var t RefType
+	var t BindVarType
 	switch p.token.lit {
 	case "$":
-		t = ArgIndexed
+		t = BindVarDollar
 		p.argIndex++
-		if p.argType == "" {
+		if p.argType == 0 {
 			p.argType = t
 		}
 		if p.argType != t {
-			return nil, p.syntaxError("mixed indexed and unindexed bindvars")
+			return nil, p.syntaxError("mixed bindvar styles")
 		}
 	case "?":
-		t = ArgUnindexed
+		t = BindVarQuestion
 		p.argIndex++
-		if p.argType == "" {
+		if p.argType == 0 {
 			p.argType = t
 		}
 		if p.argType != t {
-			return nil, p.syntaxError("mixed indexed and unindexed bindvars")
+			return nil, p.syntaxError("mixed bindvar styles")
 		}
 	}
 	index := p.argIndex
-	if t != ArgUnindexed {
+	if t != BindVarQuestion {
 		if err := p.want(_Literal); err != nil {
 			return nil, err
 		}
 		if p.token.kind != _IntLit {
-			return nil, p.syntaxError("unexpected literal, want bindvar index")
+			return nil, p.syntaxError("unexpected '" + p.token.lit + "', want bindvar index")
 		}
 		val, err := strconv.ParseUint(p.token.lit, 10, 64)
 		if err != nil {
@@ -111,7 +111,7 @@ func (p *parser) refExpr() (Expr, error) {
 		}
 		index = int(val)
 	}
-	return &RefExpr{
+	return &BindVarExpr{
 		Type:  t,
 		Index: index,
 		expr:  expr{node{pos}},

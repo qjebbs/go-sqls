@@ -23,10 +23,7 @@ func Interpolate(query string, args ...any) (string, error) {
 		switch decl := decl.(type) {
 		case *syntax.PlainExpr:
 			b.WriteString(decl.Text)
-		case *syntax.RefExpr:
-			if decl.Type != syntax.ArgIndexed && decl.Type != syntax.ArgUnindexed {
-				return "", fmt.Errorf("%s: interpolation of %s is not supported", decl.Pos(), decl.Type)
-			}
+		case *syntax.BindVarExpr:
 			v, err := encodeValue(args[decl.Index-1])
 			if err != nil {
 				return "", err

@@ -102,24 +102,24 @@ func join(ctx *context, args ...string) (string, error) {
 }
 
 func argumentDollar(ctx *context, args ...string) (string, error) {
-	return arg(ctx, syntax.ArgIndexed, args...)
+	return arg(ctx, syntax.BindVarDollar, args...)
 }
 
 func argumentQuestion(ctx *context, args ...string) (string, error) {
-	return arg(ctx, syntax.ArgUnindexed, args...)
+	return arg(ctx, syntax.BindVarQuestion, args...)
 }
 
-func arg(ctx *context, typ syntax.RefType, args ...string) (string, error) {
-	if ctx.Global.BindVarStyle == "" {
+func arg(ctx *context, typ syntax.BindVarType, args ...string) (string, error) {
+	if ctx.Global.BindVarStyle == 0 {
 		ctx.Global.BindVarStyle = typ
-		ctx.Global.FirstBindvar = ctx.Current.Segment.Raw
+		// ctx.Global.FirstBindvar = ctx.Current.Segment.Raw
 	}
-	if ctx.Global.BindVarStyle != typ {
-		return "", fmt.Errorf("mixed bindvar styles between segments '%s' and '%s'", ctx.Global.FirstBindvar, ctx.Current.Segment.Raw)
-	}
+	// if ctx.Global.BindVarStyle != typ {
+	// 	return "", fmt.Errorf("mixed bindvar styles between segments '%s' and '%s'", ctx.Global.FirstBindvar, ctx.Current.Segment.Raw)
+	// }
 	if len(args) != 1 {
 		switch ctx.Global.BindVarStyle {
-		case syntax.ArgIndexed:
+		case syntax.BindVarDollar:
 			return "", argError("$(i int)", args)
 		default:
 			return "", argError("?(i int)", args)

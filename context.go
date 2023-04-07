@@ -47,8 +47,7 @@ type contextGlobal struct {
 	ArgStore *[]any                  // args store
 	FuncMap  map[string]preprocessor // func map
 
-	BindVarStyle syntax.RefType // bindvar style
-	FirstBindvar string         // first bindvar seen
+	BindVarStyle syntax.BindVarType // bindvar style
 }
 
 // contextCurrent is the context for current segment building.

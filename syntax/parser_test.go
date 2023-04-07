@@ -29,17 +29,17 @@ func TestParser(t *testing.T) {
 		{
 			raw: "?,?,?",
 			want: []syntax.Expr{
-				&syntax.RefExpr{Type: syntax.ArgUnindexed, Index: 1},
+				&syntax.BindVarExpr{Type: syntax.BindVarQuestion, Index: 1},
 				&syntax.PlainExpr{Text: ","},
-				&syntax.RefExpr{Type: syntax.ArgUnindexed, Index: 2},
+				&syntax.BindVarExpr{Type: syntax.BindVarQuestion, Index: 2},
 				&syntax.PlainExpr{Text: ","},
-				&syntax.RefExpr{Type: syntax.ArgUnindexed, Index: 3},
+				&syntax.BindVarExpr{Type: syntax.BindVarQuestion, Index: 3},
 			},
 		},
 		{
 			raw: "$1'#c11#t111#s1111'",
 			want: []syntax.Expr{
-				&syntax.RefExpr{Type: syntax.ArgIndexed, Index: 1},
+				&syntax.BindVarExpr{Type: syntax.BindVarDollar, Index: 1},
 				&syntax.PlainExpr{Text: "'#c11#t111#s1111'"},
 			},
 		},
@@ -71,7 +71,7 @@ func TestParser(t *testing.T) {
 				got.ExprList, tc.want,
 				cmpopts.IgnoreUnexported(
 					syntax.PlainExpr{},
-					syntax.RefExpr{},
+					syntax.BindVarExpr{},
 					syntax.FuncExpr{},
 					syntax.FuncCallExpr{},
 				),

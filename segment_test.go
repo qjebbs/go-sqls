@@ -185,19 +185,20 @@ func TestBuildSegment(t *testing.T) {
 		},
 		{
 			segment: &sqls.Segment{
-				Raw:  "?, $1",
-				Args: []any{nil},
-			},
-			wantErr: true,
-		},
-		{
-			segment: &sqls.Segment{
 				Raw: "? #s1",
 				Segments: []*sqls.Segment{{
 					Raw:  "$1",
 					Args: []any{2},
 				}},
 				Args: []any{1},
+			},
+			want:     "? ?",
+			wantArgs: []any{1, 2},
+		},
+		{
+			segment: &sqls.Segment{
+				Raw:  "?, $1",
+				Args: []any{nil},
 			},
 			wantErr: true,
 		},

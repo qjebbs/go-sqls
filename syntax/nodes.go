@@ -30,21 +30,22 @@ type node struct {
 func (n *node) Pos() Pos { return n.pos }
 func (*node) aNode()     {}
 
-// RefExpr is the reference declaration.
-type RefExpr struct {
-	Type  RefType
+// BindVarExpr is the reference declaration.
+type BindVarExpr struct {
+	Type  BindVarType
 	Index int
 	expr
 }
 
-// RefType is the type of placeholder.
-type RefType string
+// BindVarType is the type of placeholder.
+type BindVarType int
 
 const (
-	// ArgIndexed is the type of indexed argument placeholders, e.g.: $1, $2, $3
-	ArgIndexed RefType = "indexed bindvar"
-	// ArgUnindexed is the type of unindexed argument placeholders, e.g.: ?, ?, ?
-	ArgUnindexed RefType = "unindexed bindvar"
+	_ BindVarType = iota
+	// BindVarDollar is the type of indexed argument placeholders, e.g.: $1, $2, $3
+	BindVarDollar
+	// BindVarQuestion is the type of unindexed argument placeholders, e.g.: ?, ?, ?
+	BindVarQuestion
 )
 
 // FuncCallExpr is the function calling declaration.
