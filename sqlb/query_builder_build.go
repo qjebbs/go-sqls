@@ -10,20 +10,22 @@ import (
 // Build builds the query.
 func (b *QueryBuilder) Build() (query string, args []any, err error) {
 	args = make([]any, 0)
-	query, err = b.buildInternal(&args, b.selects)
+	ctx := sqls.NewContext(&args)
+	ctx.BindVarStyle = b.bindVarStyle
+	query, err = b.buildInternal(ctx, b.selects)
 	if err != nil {
 		return "", nil, err
 	}
 	return query, args, nil
 }
 
-// BuildTo builds the query to the argStore.
-func (b *QueryBuilder) BuildTo(argStore *[]any) (query string, err error) {
-	return b.buildInternal(argStore, b.selects)
+// BuildContext builds the query with the context.
+func (b *QueryBuilder) BuildContext(ctx *sqls.Context) (query string, err error) {
+	return b.buildInternal(ctx, b.selects)
 }
 
 // buildInternal builds the query with the selects.
-func (b *QueryBuilder) buildInternal(argStore *[]any, selects *sqls.Segment) (string, error) {
+func (b *QueryBuilder) buildInternal(ctx *sqls.Context, selects *sqls.Segment) (string, error) {
 	if b == nil {
 		return "", nil
 	}
@@ -37,7 +39,7 @@ func (b *QueryBuilder) buildInternal(argStore *[]any, selects *sqls.Segment) (st
 		return "", err
 	}
 
-	sq, err := b.buildCTEs(argStore, dep)
+	sq, err := b.buildCTEs(ctx, dep)
 	if err != nil {
 		return "", err
 	}
@@ -45,33 +47,33 @@ func (b *QueryBuilder) buildInternal(argStore *[]any, selects *sqls.Segment) (st
 		clauses = append(clauses, sq)
 	}
 
-	sel, err := b.buildSelects(argStore, selects)
+	sel, err := b.buildSelects(ctx, selects)
 	if err != nil {
 		return "", err
 	}
 	clauses = append(clauses, sel)
-	from, err := b.buildFrom(argStore, dep)
+	from, err := b.buildFrom(ctx, dep)
 	if err != nil {
 		return "", err
 	}
 	if from != "" {
 		clauses = append(clauses, from)
 	}
-	where, err := b.conditions.BuildTo(argStore)
+	where, err := b.conditions.BuildContext(ctx)
 	if err != nil {
 		return "", err
 	}
 	if where != "" {
 		clauses = append(clauses, where)
 	}
-	groupby, err := b.groupbys.BuildTo(argStore)
+	groupby, err := b.groupbys.BuildContext(ctx)
 	if err != nil {
 		return "", err
 	}
 	if groupby != "" {
 		clauses = append(clauses, groupby)
 	}
-	order, err := b.orders.BuildTo(argStore)
+	order, err := b.orders.BuildContext(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -88,14 +90,14 @@ func (b *QueryBuilder) buildInternal(argStore *[]any, selects *sqls.Segment) (st
 	if len(b.unions) == 0 {
 		return strings.TrimSpace(query), nil
 	}
-	union, err := b.buildUnion(argStore)
+	union, err := b.buildUnion(ctx)
 	if err != nil {
 		return "", err
 	}
 	return strings.TrimSpace(query + " " + union), nil
 }
 
-func (b *QueryBuilder) buildCTEs(argStore *[]any, dep map[Table]bool) (string, error) {
+func (b *QueryBuilder) buildCTEs(ctx *sqls.Context, dep map[Table]bool) (string, error) {
 	if len(b.ctes) == 0 {
 		return "", nil
 	}
@@ -104,7 +106,7 @@ func (b *QueryBuilder) buildCTEs(argStore *[]any, dep map[Table]bool) (string, e
 		if !dep[cte.table] {
 			continue
 		}
-		query, err := cte.BuildTo(argStore)
+		query, err := cte.BuildContext(ctx)
 		if err != nil {
 			return "", fmt.Errorf("build CTE '%s': %w", cte.table, err)
 		}
@@ -122,17 +124,17 @@ func (b *QueryBuilder) buildCTEs(argStore *[]any, dep map[Table]bool) (string, e
 	return "With " + strings.Join(clauses, ", "), nil
 }
 
-func (b *QueryBuilder) buildSelects(argStore *[]any, s *sqls.Segment) (string, error) {
+func (b *QueryBuilder) buildSelects(ctx *sqls.Context, s *sqls.Segment) (string, error) {
 	if b.distinct {
 		s.Prefix = "SELECT DISTINCT"
 	} else {
 		s.Prefix = "SELECT"
 	}
-	sel, err := s.BuildTo(argStore)
+	sel, err := s.BuildContext(ctx)
 	if err != nil {
 		return "", err
 	}
-	touches, err := b.touches.BuildTo(argStore)
+	touches, err := b.touches.BuildContext(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -145,7 +147,7 @@ func (b *QueryBuilder) buildSelects(argStore *[]any, s *sqls.Segment) (string, e
 	return sel + ", " + touches, nil
 }
 
-func (b *QueryBuilder) buildFrom(argStore *[]any, dep map[Table]bool) (string, error) {
+func (b *QueryBuilder) buildFrom(ctx *sqls.Context, dep map[Table]bool) (string, error) {
 	tables := make([]string, 0, len(b.tables))
 	for _, t := range b.tables {
 		ft, ok := b.froms[t]
@@ -157,7 +159,7 @@ func (b *QueryBuilder) buildFrom(argStore *[]any, dep map[Table]bool) (string, e
 			continue
 		}
 		from := b.froms[t]
-		c, err := from.Segment.BuildTo(argStore)
+		c, err := from.Segment.BuildContext(ctx)
 		if err != nil {
 			return "", fmt.Errorf("build FROM '%s': %w", from.Segment.Raw, err)
 		}
@@ -166,10 +168,10 @@ func (b *QueryBuilder) buildFrom(argStore *[]any, dep map[Table]bool) (string, e
 	return "FROM " + strings.Join(tables, " "), nil
 }
 
-func (b *QueryBuilder) buildUnion(argStore *[]any) (string, error) {
+func (b *QueryBuilder) buildUnion(ctx *sqls.Context) (string, error) {
 	clauses := make([]string, 0, len(b.unions))
 	for _, union := range b.unions {
-		query, err := union.BuildTo(argStore)
+		query, err := union.BuildContext(ctx)
 		if err != nil {
 			return "", err
 		}

@@ -212,7 +212,7 @@ func TestBuildSegment(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			args := make([]any, 0)
-			got, err := tc.segment.BuildTo(&args)
+			got, err := tc.segment.BuildContext(sqls.NewContext(&args))
 			if err != nil {
 				if tc.wantErr {
 					return

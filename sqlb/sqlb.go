@@ -5,10 +5,12 @@
 // Please read the Segment document in `base` package to understand how it works.
 package sqlb
 
+import "git.qjebbs.com/jebbs/go-sqls"
+
 // Builder is the interface for sql builders.
 type Builder interface {
 	// Build builds and returns the query and args.
 	Build() (query string, args []any, err error)
 	// BuildTo builds the query and append args to the argStore.
-	BuildTo(argStore *[]any) (query string, err error)
+	BuildContext(ctx *sqls.Context) (query string, err error)
 }

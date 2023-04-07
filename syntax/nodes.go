@@ -32,20 +32,21 @@ func (*node) aNode()     {}
 
 // BindVarExpr is the reference declaration.
 type BindVarExpr struct {
-	Type  BindVarType
+	Type  BindVarStyle
 	Index int
 	expr
 }
 
-// BindVarType is the type of placeholder.
-type BindVarType int
+// BindVarStyle is the type of placeholder.
+type BindVarStyle int
 
 const (
-	_ BindVarType = iota
-	// BindVarDollar is the type of indexed argument placeholders, e.g.: $1, $2, $3
-	BindVarDollar
-	// BindVarQuestion is the type of unindexed argument placeholders, e.g.: ?, ?, ?
-	BindVarQuestion
+	// Auto detect bindvar style, first encountered style will be used.
+	Auto BindVarStyle = iota
+	// Dollar is the type of indexed argument placeholders, e.g.: $1, $2, $3
+	Dollar
+	// Question is the type of unindexed argument placeholders, e.g.: ?, ?, ?
+	Question
 )
 
 // FuncCallExpr is the function calling declaration.

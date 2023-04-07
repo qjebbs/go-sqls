@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"git.qjebbs.com/jebbs/go-sqls"
+	"git.qjebbs.com/jebbs/go-sqls/syntax"
 )
 
 var _ Builder = (*QueryBuilder)(nil)
@@ -13,7 +14,8 @@ var _ Builder = (*QueryBuilder)(nil)
 // It's recommended to wrap it with your struct to provide a
 // more friendly API and improve segment reusability.
 type QueryBuilder struct {
-	db QueryAble // the database connection
+	db           QueryAble           // the database connection
+	bindVarStyle syntax.BindVarStyle // the bindvar style
 
 	ctes         []*cte               // common table expressions
 	froms        map[Table]*fromTable // the from tables by alias
@@ -140,5 +142,11 @@ func (b *QueryBuilder) GroupBy(column *sqls.TableColumn, args ...any) *QueryBuil
 // *QueryBuilder embedded.)
 func (b *QueryBuilder) Union(builders ...Builder) *QueryBuilder {
 	b.unions = append(b.unions, builders...)
+	return b
+}
+
+// BindVar set the bindvar style.
+func (b *QueryBuilder) BindVar(style syntax.BindVarStyle) *QueryBuilder {
+	b.bindVarStyle = style
 	return b
 }

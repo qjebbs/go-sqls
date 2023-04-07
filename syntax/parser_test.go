@@ -29,17 +29,17 @@ func TestParser(t *testing.T) {
 		{
 			raw: "?,?,?",
 			want: []syntax.Expr{
-				&syntax.BindVarExpr{Type: syntax.BindVarQuestion, Index: 1},
+				&syntax.BindVarExpr{Type: syntax.Question, Index: 1},
 				&syntax.PlainExpr{Text: ","},
-				&syntax.BindVarExpr{Type: syntax.BindVarQuestion, Index: 2},
+				&syntax.BindVarExpr{Type: syntax.Question, Index: 2},
 				&syntax.PlainExpr{Text: ","},
-				&syntax.BindVarExpr{Type: syntax.BindVarQuestion, Index: 3},
+				&syntax.BindVarExpr{Type: syntax.Question, Index: 3},
 			},
 		},
 		{
 			raw: "$1'#c11#t111#s1111'",
 			want: []syntax.Expr{
-				&syntax.BindVarExpr{Type: syntax.BindVarDollar, Index: 1},
+				&syntax.BindVarExpr{Type: syntax.Dollar, Index: 1},
 				&syntax.PlainExpr{Text: "'#c11#t111#s1111'"},
 			},
 		},

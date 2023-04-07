@@ -8,8 +8,8 @@ import (
 
 // Context is the global context shared between all segments building.
 type Context struct {
-	ArgStore     *[]any             // args store
-	BindVarStyle syntax.BindVarType // bindvar style
+	ArgStore     *[]any              // args store
+	BindVarStyle syntax.BindVarStyle // bindvar style
 
 	funcMap map[string]preprocessor // func map
 }

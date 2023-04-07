@@ -102,14 +102,14 @@ func join(ctx *context, args ...string) (string, error) {
 }
 
 func argumentDollar(ctx *context, args ...string) (string, error) {
-	return arg(ctx, syntax.BindVarDollar, args...)
+	return arg(ctx, syntax.Dollar, args...)
 }
 
 func argumentQuestion(ctx *context, args ...string) (string, error) {
-	return arg(ctx, syntax.BindVarQuestion, args...)
+	return arg(ctx, syntax.Question, args...)
 }
 
-func arg(ctx *context, typ syntax.BindVarType, args ...string) (string, error) {
+func arg(ctx *context, typ syntax.BindVarStyle, args ...string) (string, error) {
 	if ctx.global.BindVarStyle == 0 {
 		ctx.global.BindVarStyle = typ
 		// ctx.global.FirstBindvar = ctx.Segment.Raw
@@ -119,7 +119,7 @@ func arg(ctx *context, typ syntax.BindVarType, args ...string) (string, error) {
 	// }
 	if len(args) != 1 {
 		switch ctx.global.BindVarStyle {
-		case syntax.BindVarDollar:
+		case syntax.Dollar:
 			return "", argError("$(i int)", args)
 		default:
 			return "", argError("?(i int)", args)

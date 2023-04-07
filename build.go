@@ -11,18 +11,11 @@ import (
 // Build builds the segment.
 func (s *Segment) Build() (query string, args []any, err error) {
 	args = make([]any, 0)
-	query, err = s.BuildTo(&args)
+	query, err = s.BuildContext(NewContext(&args))
 	if err != nil {
 		return "", nil, err
 	}
 	return query, args, nil
-}
-
-// BuildTo builds the segment to the arg storage.
-func (s *Segment) BuildTo(argStore *[]any) (query string, err error) {
-	return s.BuildContext(
-		NewContext(argStore),
-	)
 }
 
 // BuildContext builds the segment with context.
@@ -87,17 +80,14 @@ func buildCluase(ctx *context, clause *syntax.Clause) (string, error) {
 				ctx.global.BindVarStyle = expr.Type
 				// ctx.global.FirstBindvar = ctx.Segment.Raw
 			}
-			switch expr.Type {
-			case syntax.BindVarDollar, syntax.BindVarQuestion:
-				// if ctx.global.BindVarStyle != expr.Type {
-				// 	return "", fmt.Errorf("mixed bindvar styles between segments '%s' and '%s'", ctx.global.FirstBindvar, ctx.Segment.Raw)
-				// }
-				s, err := buildArg(ctx, expr.Index)
-				if err != nil {
-					return "", err
-				}
-				b.WriteString(s)
+			// if ctx.global.BindVarStyle != expr.Type {
+			// 	return "", fmt.Errorf("mixed bindvar styles between segments '%s' and '%s'", ctx.global.FirstBindvar, ctx.Segment.Raw)
+			// }
+			s, err := buildArg(ctx, expr.Index)
+			if err != nil {
+				return "", err
 			}
+			b.WriteString(s)
 		default:
 			return "", fmt.Errorf("unknown expression type %T", expr)
 		}
@@ -113,9 +103,9 @@ func buildArg(ctx *context, index int) (string, error) {
 	i := index - 1
 	ctx.ArgsUsed[i] = true
 	built := ctx.ArgsBuilt[i]
-	if built == "" || ctx.global.BindVarStyle == syntax.BindVarQuestion {
+	if built == "" || ctx.global.BindVarStyle == syntax.Question {
 		*ctx.global.ArgStore = append(*ctx.global.ArgStore, ctx.Segment.Args[i])
-		if ctx.global.BindVarStyle == syntax.BindVarQuestion {
+		if ctx.global.BindVarStyle == syntax.Question {
 			built = "?"
 		} else {
 			built = "$" + strconv.Itoa(len(*ctx.global.ArgStore))
@@ -134,7 +124,7 @@ func buildColumn(ctx *context, index int) (string, error) {
 	ctx.ColumnsUsed[i] = true
 	col := ctx.Segment.Columns[i]
 	built := ctx.ColumnsBuilt[i]
-	if built == "" || (ctx.global.BindVarStyle == syntax.BindVarQuestion && len(col.Args) > 0) {
+	if built == "" || (ctx.global.BindVarStyle == syntax.Question && len(col.Args) > 0) {
 		b, err := buildColumn2(ctx, col)
 		if err != nil {
 			return "", err
@@ -187,7 +177,7 @@ func buildSegment(ctx *context, index int) (string, error) {
 	ctx.SegmentsUsed[i] = true
 	seg := ctx.Segment.Segments[i]
 	built := ctx.SegmentsBuilt[i]
-	if built == "" || (ctx.global.BindVarStyle == syntax.BindVarQuestion && len(seg.Args) > 0) {
+	if built == "" || (ctx.global.BindVarStyle == syntax.Question && len(seg.Args) > 0) {
 		b, err := seg.BuildContext(ctx.global)
 		if err != nil {
 			return "", err

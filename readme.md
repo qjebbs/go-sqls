@@ -95,7 +95,7 @@ func ExampleQueryBuilder_Build() {
 		foo = sqlb.NewTable("foo", "f")
 		bar = sqlb.NewTable("bar", "b")
 	)
-	query, args, err := sqlb.NewQueryBuilder(nil).
+	b := sqlb.NewQueryBuilder(nil).
 		Select(foo.Columns("*")).
 		From(foo).
 		InnerJoin(bar, &sqls.Segment{
@@ -106,20 +106,29 @@ func ExampleQueryBuilder_Build() {
 			},
 		}).
 		Where(&sqls.Segment{
-			Raw:     "(#c1=$1 OR #c2=$2)",
+			Raw:     "(#c1=$1 OR #c2=$1)",
 			Columns: foo.Columns("a", "b"),
-			Args:    []any{1, 2},
+			Args:    []any{1},
 		}).
-		Where2(bar.Column("c"), "=", 3).
-		Build()
+		Where2(bar.Column("c"), "=", 2)
+
+	query, args, err := b.BindVar(syntax.Dollar).Build()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(query)
+	fmt.Println(args)
+	query, args, err = b.BindVar(syntax.Question).Build()
 	if err != nil {
 		panic(err)
 	}
 	fmt.Println(query)
 	fmt.Println(args)
 	// Output:
-	// SELECT f.* FROM foo AS f INNER JOIN bar AS b ON b.foo_id=f.id WHERE (f.a=$1 OR f.b=$2) AND b.c=$3
-	// [1 2 3]
+	// SELECT f.* FROM foo AS f INNER JOIN bar AS b ON b.foo_id=f.id WHERE (f.a=$1 OR f.b=$1) AND b.c=$2
+	// [1 2]
+	// SELECT f.* FROM foo AS f INNER JOIN bar AS b ON b.foo_id=f.id WHERE (f.a=? OR f.b=?) AND b.c=?
+	// [1 1 2]
 }
 ```
 </details>

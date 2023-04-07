@@ -34,15 +34,17 @@ func (b *QueryBuilder) Scan(s QueryScanner) ([]any, error) {
 // Scan scans query rows with scanner
 func (b *QueryBuilder) scan(scanner QueryScanner, fn scanFunc) ([]any, error) {
 	args := make([]any, 0)
+	ctx := sqls.NewContext(&args)
+	ctx.BindVarStyle = b.bindVarStyle
 	selects := scanner.Select()
 	var (
 		query string
 		err   error
 	)
 	if len(selects) == 0 {
-		query, err = b.buildInternal(&args, b.selects)
+		query, err = b.buildInternal(ctx, b.selects)
 	} else {
-		query, err = b.buildInternal(&args, &sqls.Segment{
+		query, err = b.buildInternal(ctx, &sqls.Segment{
 			Prefix:  "SELECT",
 			Raw:     "#join('#c', ', ')",
 			Columns: selects,
@@ -88,7 +90,9 @@ func (b *blackhole) Scan(_ any) error { return nil }
 // Count count the number of items that match the condition.
 func (b *QueryBuilder) Count(columns ...*sqls.TableColumn) (count int64, err error) {
 	args := make([]any, 0)
-	query, err := b.buildInternal(&args, &sqls.Segment{
+	ctx := sqls.NewContext(&args)
+	ctx.BindVarStyle = b.bindVarStyle
+	query, err := b.buildInternal(ctx, &sqls.Segment{
 		Prefix:  "SELECT",
 		Raw:     "#join('#c', ', ')",
 		Columns: columns,
