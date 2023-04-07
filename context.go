@@ -6,52 +6,25 @@ import (
 	"git.qjebbs.com/jebbs/go-sqls/syntax"
 )
 
-// context is the context for building.
-type context struct {
-	Global  *contextGlobal
-	Current *contextCurrent
-}
-
-// newContext returns a new context.
-func newContext(argStore *[]any) *context {
-	return &context{
-		Global: &contextGlobal{
-			ArgStore: argStore,
-			FuncMap:  builtInFuncs,
-		},
-	}
-}
-
-// WithSegment returns a new context with the given segment.
-func (c *context) WithSegment(s *Segment) *context {
-	if s == nil {
-		return nil
-	}
-	return &context{
-		Global: c.Global,
-		Current: &contextCurrent{
-			Segment:       s,
-			ArgsBuilt:     make([]string, len(s.Args)),
-			ColumnsBuilt:  make([]string, len(s.Columns)),
-			TableUsed:     make([]bool, len(s.Tables)),
-			SegmentsBuilt: make([]string, len(s.Segments)),
-			ArgsUsed:      make([]bool, len(s.Args)),
-			ColumnsUsed:   make([]bool, len(s.Columns)),
-			SegmentsUsed:  make([]bool, len(s.Segments)),
-		},
-	}
-}
-
-// contextGlobal is the global context shared between all segments building.
-type contextGlobal struct {
-	ArgStore *[]any                  // args store
-	FuncMap  map[string]preprocessor // func map
-
+// Context is the global context shared between all segments building.
+type Context struct {
+	ArgStore     *[]any             // args store
 	BindVarStyle syntax.BindVarType // bindvar style
+
+	funcMap map[string]preprocessor // func map
 }
 
-// contextCurrent is the context for current segment building.
-type contextCurrent struct {
+// NewContext returns a new context.
+func NewContext(argStore *[]any) *Context {
+	return &Context{
+		ArgStore: argStore,
+		funcMap:  builtInFuncs,
+	}
+}
+
+// context is the context for current segment building.
+type context struct {
+	global  *Context // global context
 	Segment *Segment // current segment
 
 	ArgsBuilt     []string // cache of built args
@@ -64,7 +37,24 @@ type contextCurrent struct {
 	SegmentsUsed []bool // flags to indicate if a segment is used
 }
 
-func (c *contextCurrent) checkUsage() error {
+func newSegmentContext(ctx *Context, s *Segment) *context {
+	if s == nil {
+		return nil
+	}
+	return &context{
+		global:        ctx,
+		Segment:       s,
+		ArgsBuilt:     make([]string, len(s.Args)),
+		ColumnsBuilt:  make([]string, len(s.Columns)),
+		TableUsed:     make([]bool, len(s.Tables)),
+		SegmentsBuilt: make([]string, len(s.Segments)),
+		ArgsUsed:      make([]bool, len(s.Args)),
+		ColumnsUsed:   make([]bool, len(s.Columns)),
+		SegmentsUsed:  make([]bool, len(s.Segments)),
+	}
+}
+
+func (c *context) checkUsage() error {
 	if c == nil {
 		return nil
 	}

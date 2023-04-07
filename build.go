@@ -20,22 +20,23 @@ func (s *Segment) Build() (query string, args []any, err error) {
 
 // BuildTo builds the segment to the arg storage.
 func (s *Segment) BuildTo(argStore *[]any) (query string, err error) {
-	return s.buildInternal(
-		newContext(argStore),
+	return s.BuildContext(
+		NewContext(argStore),
 	)
 }
 
-func (s *Segment) buildInternal(ctx *context) (string, error) {
+// BuildContext builds the segment with context.
+func (s *Segment) BuildContext(ctx *Context) (string, error) {
 	if s == nil {
 		return "", nil
 	}
-	ctx = ctx.WithSegment(s)
-	body, err := build(ctx)
+	ctxCur := newSegmentContext(ctx, s)
+	body, err := build(ctxCur)
 	if err != nil {
 		return "", err
 	}
-	if err := ctx.Current.checkUsage(); err != nil {
-		return "", fmt.Errorf("build '%s': %w", ctx.Current.Segment.Raw, err)
+	if err := ctxCur.checkUsage(); err != nil {
+		return "", fmt.Errorf("build '%s': %w", ctxCur.Segment.Raw, err)
 	}
 	body = strings.TrimSpace(body)
 	if body == "" {
@@ -53,13 +54,13 @@ func (s *Segment) buildInternal(ctx *context) (string, error) {
 
 // build builds the segment
 func build(ctx *context) (string, error) {
-	clause, err := syntax.Parse(ctx.Current.Segment.Raw)
+	clause, err := syntax.Parse(ctx.Segment.Raw)
 	if err != nil {
-		return "", fmt.Errorf("parse '%s': %w", ctx.Current.Segment.Raw, err)
+		return "", fmt.Errorf("parse '%s': %w", ctx.Segment.Raw, err)
 	}
 	built, err := buildCluase(ctx, clause)
 	if err != nil {
-		return "", fmt.Errorf("build '%s': %w", ctx.Current.Segment.Raw, err)
+		return "", fmt.Errorf("build '%s': %w", ctx.Segment.Raw, err)
 	}
 	return built, nil
 }
@@ -72,7 +73,7 @@ func buildCluase(ctx *context, clause *syntax.Clause) (string, error) {
 		case *syntax.PlainExpr:
 			b.WriteString(expr.Text)
 		case *syntax.FuncCallExpr:
-			fn := ctx.Global.FuncMap[expr.Name]
+			fn := ctx.global.funcMap[expr.Name]
 			if fn == nil {
 				return "", fmt.Errorf("function '%s' is not found", expr.Name)
 			}
@@ -82,14 +83,14 @@ func buildCluase(ctx *context, clause *syntax.Clause) (string, error) {
 			}
 			b.WriteString(s)
 		case *syntax.BindVarExpr:
-			if ctx.Global.BindVarStyle == 0 {
-				ctx.Global.BindVarStyle = expr.Type
-				// ctx.Global.FirstBindvar = ctx.Current.Segment.Raw
+			if ctx.global.BindVarStyle == 0 {
+				ctx.global.BindVarStyle = expr.Type
+				// ctx.global.FirstBindvar = ctx.Segment.Raw
 			}
 			switch expr.Type {
 			case syntax.BindVarDollar, syntax.BindVarQuestion:
-				// if ctx.Global.BindVarStyle != expr.Type {
-				// 	return "", fmt.Errorf("mixed bindvar styles between segments '%s' and '%s'", ctx.Global.FirstBindvar, ctx.Current.Segment.Raw)
+				// if ctx.global.BindVarStyle != expr.Type {
+				// 	return "", fmt.Errorf("mixed bindvar styles between segments '%s' and '%s'", ctx.global.FirstBindvar, ctx.Segment.Raw)
 				// }
 				s, err := buildArg(ctx, expr.Index)
 				if err != nil {
@@ -106,39 +107,39 @@ func buildCluase(ctx *context, clause *syntax.Clause) (string, error) {
 
 // Arg renders the bindvar at index.
 func buildArg(ctx *context, index int) (string, error) {
-	if index > len(ctx.Current.Segment.Args) {
+	if index > len(ctx.Segment.Args) {
 		return "", fmt.Errorf("invalid bindvar index %d", index)
 	}
 	i := index - 1
-	ctx.Current.ArgsUsed[i] = true
-	built := ctx.Current.ArgsBuilt[i]
-	if built == "" || ctx.Global.BindVarStyle == syntax.BindVarQuestion {
-		*ctx.Global.ArgStore = append(*ctx.Global.ArgStore, ctx.Current.Segment.Args[i])
-		if ctx.Global.BindVarStyle == syntax.BindVarQuestion {
+	ctx.ArgsUsed[i] = true
+	built := ctx.ArgsBuilt[i]
+	if built == "" || ctx.global.BindVarStyle == syntax.BindVarQuestion {
+		*ctx.global.ArgStore = append(*ctx.global.ArgStore, ctx.Segment.Args[i])
+		if ctx.global.BindVarStyle == syntax.BindVarQuestion {
 			built = "?"
 		} else {
-			built = "$" + strconv.Itoa(len(*ctx.Global.ArgStore))
+			built = "$" + strconv.Itoa(len(*ctx.global.ArgStore))
 		}
-		ctx.Current.ArgsBuilt[i] = built
+		ctx.ArgsBuilt[i] = built
 	}
 	return built, nil
 }
 
 // Column renders the column at index.
 func buildColumn(ctx *context, index int) (string, error) {
-	if index > len(ctx.Current.Segment.Columns) {
+	if index > len(ctx.Segment.Columns) {
 		return "", fmt.Errorf("invalid column index %d", index)
 	}
 	i := index - 1
-	ctx.Current.ColumnsUsed[i] = true
-	col := ctx.Current.Segment.Columns[i]
-	built := ctx.Current.ColumnsBuilt[i]
-	if built == "" || (ctx.Global.BindVarStyle == syntax.BindVarQuestion && len(col.Args) > 0) {
+	ctx.ColumnsUsed[i] = true
+	col := ctx.Segment.Columns[i]
+	built := ctx.ColumnsBuilt[i]
+	if built == "" || (ctx.global.BindVarStyle == syntax.BindVarQuestion && len(col.Args) > 0) {
 		b, err := buildColumn2(ctx, col)
 		if err != nil {
 			return "", err
 		}
-		ctx.Current.ColumnsBuilt[i] = b
+		ctx.ColumnsBuilt[i] = b
 		built = b
 	}
 	return built, nil
@@ -153,45 +154,45 @@ func buildColumn2(ctx *context, c *TableColumn) (string, error) {
 		Args:   c.Args,
 		Tables: []Table{c.Table},
 	}
-	ctx = ctx.WithSegment(seg)
+	ctx = newSegmentContext(ctx.global, seg)
 	built, err := build(ctx)
 	if err != nil {
 		return "", err
 	}
 	// don't check usage of tables
-	for i := range ctx.Current.TableUsed {
-		ctx.Current.TableUsed[i] = true
+	for i := range ctx.TableUsed {
+		ctx.TableUsed[i] = true
 	}
-	if err := ctx.Current.checkUsage(); err != nil {
-		return "", fmt.Errorf("build '%s': %w", ctx.Current.Segment.Raw, err)
+	if err := ctx.checkUsage(); err != nil {
+		return "", fmt.Errorf("build '%s': %w", ctx.Segment.Raw, err)
 	}
 	return built, err
 }
 
 // Table renders the table at index.
 func buildTable(ctx *context, index int) (string, error) {
-	if index > len(ctx.Current.Segment.Tables) {
+	if index > len(ctx.Segment.Tables) {
 		return "", fmt.Errorf("invalid table index %d", index)
 	}
-	ctx.Current.TableUsed[index-1] = true
-	return string(ctx.Current.Segment.Tables[index-1]), nil
+	ctx.TableUsed[index-1] = true
+	return string(ctx.Segment.Tables[index-1]), nil
 }
 
 // Segment renders the segment at index.
 func buildSegment(ctx *context, index int) (string, error) {
-	if index > len(ctx.Current.Segment.Segments) {
+	if index > len(ctx.Segment.Segments) {
 		return "", fmt.Errorf("invalid segment index %d", index)
 	}
 	i := index - 1
-	ctx.Current.SegmentsUsed[i] = true
-	seg := ctx.Current.Segment.Segments[i]
-	built := ctx.Current.SegmentsBuilt[i]
-	if built == "" || (ctx.Global.BindVarStyle == syntax.BindVarQuestion && len(seg.Args) > 0) {
-		b, err := seg.buildInternal(ctx)
+	ctx.SegmentsUsed[i] = true
+	seg := ctx.Segment.Segments[i]
+	built := ctx.SegmentsBuilt[i]
+	if built == "" || (ctx.global.BindVarStyle == syntax.BindVarQuestion && len(seg.Args) > 0) {
+		b, err := seg.BuildContext(ctx.global)
 		if err != nil {
 			return "", err
 		}
-		ctx.Current.SegmentsBuilt[i] = b
+		ctx.SegmentsBuilt[i] = b
 		built = b
 	}
 	return built, nil

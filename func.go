@@ -40,9 +40,9 @@ func join(ctx *context, args ...string) (string, error) {
 		nRefs        int
 		calls        []*syntax.FuncCallExpr
 	)
-	nArgs := len(ctx.Current.Segment.Args)
-	nColumns := len(ctx.Current.Segment.Columns)
-	nSegments := len(ctx.Current.Segment.Segments)
+	nArgs := len(ctx.Segment.Args)
+	nColumns := len(ctx.Segment.Columns)
+	nSegments := len(ctx.Segment.Segments)
 	for i, expr := range c.ExprList {
 		fn, ok := expr.(*syntax.FuncExpr)
 		if !ok {
@@ -110,15 +110,15 @@ func argumentQuestion(ctx *context, args ...string) (string, error) {
 }
 
 func arg(ctx *context, typ syntax.BindVarType, args ...string) (string, error) {
-	if ctx.Global.BindVarStyle == 0 {
-		ctx.Global.BindVarStyle = typ
-		// ctx.Global.FirstBindvar = ctx.Current.Segment.Raw
+	if ctx.global.BindVarStyle == 0 {
+		ctx.global.BindVarStyle = typ
+		// ctx.global.FirstBindvar = ctx.Segment.Raw
 	}
-	// if ctx.Global.BindVarStyle != typ {
-	// 	return "", fmt.Errorf("mixed bindvar styles between segments '%s' and '%s'", ctx.Global.FirstBindvar, ctx.Current.Segment.Raw)
+	// if ctx.global.BindVarStyle != typ {
+	// 	return "", fmt.Errorf("mixed bindvar styles between segments '%s' and '%s'", ctx.global.FirstBindvar, ctx.Segment.Raw)
 	// }
 	if len(args) != 1 {
-		switch ctx.Global.BindVarStyle {
+		switch ctx.global.BindVarStyle {
 		case syntax.BindVarDollar:
 			return "", argError("$(i int)", args)
 		default:
