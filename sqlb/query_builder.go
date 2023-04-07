@@ -92,19 +92,44 @@ func (b *QueryBuilder) Select(columns []*sqls.TableColumn) *QueryBuilder {
 	return b
 }
 
+// Order is the sorting order.
+type Order uint
+
+// orders
+const (
+	Asc Order = iota
+	AscNullsFirst
+	AscNullsLast
+	Desc
+	DescNullsFirst
+	DescNullsLast
+)
+
+var orders = []string{
+	"ASC",
+	"ASC NULLS FIRST",
+	"ASC NULLS LAST",
+	"DESC",
+	"DESC NULLS FIRST",
+	"DESC NULLS LAST",
+}
+
 // OrderBy set the sorting order. the order can be "ASC", "DESC", "ASC NULLS FIRST" or "DESC NULLS LAST"
-func (b *QueryBuilder) OrderBy(column *sqls.TableColumn, order string, args ...any) *QueryBuilder {
+func (b *QueryBuilder) OrderBy(column *sqls.TableColumn, order Order) *QueryBuilder {
 	idx := len(b.orders.Segments) + 1
 	alias := fmt.Sprintf("_order_%d", idx)
 
+	if order > DescNullsLast {
+		b.pushError(fmt.Errorf("invalid order: %d", order))
+	}
+	orderStr := orders[order]
 	// pq: for SELECT DISTINCT, ORDER BY expressions must appear in select list
 	b.touches.AppendSegments(&sqls.Segment{
 		Raw:     "#c1 AS " + alias,
 		Columns: []*sqls.TableColumn{column},
-		Args:    args,
 	})
 	b.orders.AppendSegments(&sqls.Segment{
-		Raw:     fmt.Sprintf("%s %s", alias, order),
+		Raw:     fmt.Sprintf("%s %s", alias, orderStr),
 		Columns: nil,
 		Args:    nil,
 	})
