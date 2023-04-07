@@ -6,6 +6,7 @@ import (
 
 	"git.qjebbs.com/jebbs/go-sqls"
 	"git.qjebbs.com/jebbs/go-sqls/sqlb"
+	"git.qjebbs.com/jebbs/go-sqls/syntax"
 )
 
 func TestQueryBuilder(t *testing.T) {
@@ -14,7 +15,8 @@ func TestQueryBuilder(t *testing.T) {
 		foo   = sqlb.NewTable("foo", "f")
 		bar   = sqlb.NewTable("bar", "b")
 	)
-	q := sqlb.NewQueryBuilder(nil).Distinct().
+	q := sqlb.NewQueryBuilder(nil).
+		BindVar(syntax.Dollar).Distinct().
 		With(users.Name, &sqls.Segment{
 			Raw:  "SELECT * FROM users WHERE type=$1",
 			Args: []any{"user"},
@@ -39,6 +41,7 @@ func TestQueryBuilder(t *testing.T) {
 		Where2(users.Column("id"), "=", 1).
 		Union(
 			sqlb.NewQueryBuilder(nil).
+				BindVar(syntax.Dollar).
 				Select(foo.Columns("id", "name")).
 				From(foo).
 				Where(&sqls.Segment{

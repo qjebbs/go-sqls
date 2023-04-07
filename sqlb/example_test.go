@@ -55,6 +55,7 @@ func ExampleQueryBuilder_LeftJoinOptional() {
 		bar = sqlb.NewTable("bar", "b")
 	)
 	query, args, err := sqlb.NewQueryBuilder(nil).
+		BindVar(syntax.Dollar).
 		Distinct(). // *QueryBuilder trims optional joins only when SELECT DISTINCT is used.
 		Select(foo.Columns("*")).
 		From(foo).
@@ -86,6 +87,7 @@ func ExampleQueryBuilder_With() {
 		cte = sqlb.NewTable("bar_type_1", "b1")
 	)
 	query, args, err := sqlb.NewQueryBuilder(nil).
+		BindVar(syntax.Dollar).
 		With(cte.Name, &sqls.Segment{
 			Raw:     "SELECT * FROM #t1 AS #t2 WHERE #c1=$1",
 			Columns: bar.Columns("type"),
@@ -119,11 +121,13 @@ func ExampleQueryBuilder_Union() {
 	var foo = sqlb.NewTable("foo", "f")
 	columns := foo.Columns("*")
 	query, args, err := sqlb.NewQueryBuilder(nil).
+		BindVar(syntax.Dollar).
 		Select(columns).
 		From(foo).
 		Where2(foo.Column("id"), " = ", 1).
 		Union(
 			sqlb.NewQueryBuilder(nil).
+				BindVar(syntax.Dollar).
 				From(foo).
 				WhereIn(foo.Column("id"), []any{2, 3, 4}).
 				Select(columns),
