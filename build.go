@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"git.qjebbs.com/jebbs/go-sqls/syntax"
+	"github.com/qjebbs/go-sqls/syntax"
 )
 
 // Build builds the segment.

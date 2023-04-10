@@ -3,9 +3,9 @@ package syntax_test
 import (
 	"testing"
 
-	"git.qjebbs.com/jebbs/go-sqls/syntax"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/qjebbs/go-sqls/syntax"
 )
 
 func TestParser(t *testing.T) {

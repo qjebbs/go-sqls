@@ -4,8 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 
-	"git.qjebbs.com/jebbs/go-sqls"
-	"git.qjebbs.com/jebbs/go-sqls/syntax"
+	"github.com/qjebbs/go-sqls"
+	"github.com/qjebbs/go-sqls/syntax"
 )
 
 var _ Builder = (*QueryBuilder)(nil)

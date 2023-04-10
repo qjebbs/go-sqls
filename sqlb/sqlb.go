@@ -1,7 +1,7 @@
 // Package sqlb is a SQL query builder based on `sqls.Segment`.
 package sqlb
 
-import "git.qjebbs.com/jebbs/go-sqls"
+import "github.com/qjebbs/go-sqls"
 
 // Builder is the interface for sql builders.
 type Builder interface {

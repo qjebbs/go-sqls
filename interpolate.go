@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"git.qjebbs.com/jebbs/go-sqls/syntax"
+	"github.com/qjebbs/go-sqls/syntax"
 )
 
 // Interpolate interpolates the args into the query, use it only for

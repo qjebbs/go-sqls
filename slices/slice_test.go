@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"git.qjebbs.com/jebbs/go-sqls/slices"
+	"github.com/qjebbs/go-sqls/slices"
 )
 
 func TestConvertSlices(t *testing.T) {

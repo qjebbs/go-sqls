@@ -3,7 +3,7 @@ package sqls
 import (
 	"fmt"
 
-	"git.qjebbs.com/jebbs/go-sqls/syntax"
+	"github.com/qjebbs/go-sqls/syntax"
 )
 
 // Context is the global context shared between all segments building.

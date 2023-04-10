@@ -3,7 +3,7 @@ package sqls_test
 import (
 	"fmt"
 
-	"git.qjebbs.com/jebbs/go-sqls"
+	"github.com/qjebbs/go-sqls"
 )
 
 func Example_select() {

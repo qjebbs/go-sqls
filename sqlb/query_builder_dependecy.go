@@ -3,8 +3,8 @@ package sqlb
 import (
 	"fmt"
 
-	"git.qjebbs.com/jebbs/go-sqls"
-	"git.qjebbs.com/jebbs/go-sqls/slices"
+	"github.com/qjebbs/go-sqls"
+	"github.com/qjebbs/go-sqls/slices"
 )
 
 func (b *QueryBuilder) calcDependency(selects *sqls.Segment) (map[Table]bool, error) {

@@ -1,4 +1,4 @@
-module git.qjebbs.com/jebbs/go-sqls
+module github.com/qjebbs/go-sqls
 
 go 1.18
 

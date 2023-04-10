@@ -1,8 +1,8 @@
 package sqlb
 
 import (
-	"git.qjebbs.com/jebbs/go-sqls"
-	"git.qjebbs.com/jebbs/go-sqls/slices"
+	"github.com/qjebbs/go-sqls"
+	"github.com/qjebbs/go-sqls/slices"
 )
 
 // Where add a condition.  e.g.:

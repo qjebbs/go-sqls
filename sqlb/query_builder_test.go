@@ -4,9 +4,9 @@ import (
 	"reflect"
 	"testing"
 
-	"git.qjebbs.com/jebbs/go-sqls"
-	"git.qjebbs.com/jebbs/go-sqls/sqlb"
-	"git.qjebbs.com/jebbs/go-sqls/syntax"
+	"github.com/qjebbs/go-sqls"
+	"github.com/qjebbs/go-sqls/sqlb"
+	"github.com/qjebbs/go-sqls/syntax"
 )
 
 func TestQueryBuilder(t *testing.T) {

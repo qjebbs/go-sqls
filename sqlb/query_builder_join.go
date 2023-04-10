@@ -3,7 +3,7 @@ package sqlb
 import (
 	"fmt"
 
-	"git.qjebbs.com/jebbs/go-sqls"
+	"github.com/qjebbs/go-sqls"
 )
 
 // From set the from table.

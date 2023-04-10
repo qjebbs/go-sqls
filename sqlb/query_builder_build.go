@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"git.qjebbs.com/jebbs/go-sqls"
+	"github.com/qjebbs/go-sqls"
 )
 
 // Build builds the query.

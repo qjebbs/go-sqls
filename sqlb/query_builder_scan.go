@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	"git.qjebbs.com/jebbs/go-sqls"
+	"github.com/qjebbs/go-sqls"
 )
 
 // QueryScanner is the interface for QueryBuilder scanner, it tells

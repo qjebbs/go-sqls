@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"git.qjebbs.com/jebbs/go-sqls"
+	"github.com/qjebbs/go-sqls"
 )
 
 func TestBuildSegment(t *testing.T) {

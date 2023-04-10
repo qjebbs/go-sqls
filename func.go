@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"git.qjebbs.com/jebbs/go-sqls/syntax"
+	"github.com/qjebbs/go-sqls/syntax"
 )
 
 // preprocessor is the type of preprocessing functions.

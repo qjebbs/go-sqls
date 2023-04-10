@@ -1,6 +1,6 @@
 package sqlb
 
-import "git.qjebbs.com/jebbs/go-sqls"
+import "github.com/qjebbs/go-sqls"
 
 // Table is the table name with alias.
 type Table struct {
