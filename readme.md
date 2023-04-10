@@ -1,4 +1,4 @@
-Package sqls focuses only on bulding SQL queries by free combination
+Package sqls focuses only on building SQL queries by free combination
 of segments. Thus, it works naturally with all sql dialects without
 having to deal with the differences between them. Unlike any other
 sql builder or ORMs, Segment is the only concept you need to learn.
