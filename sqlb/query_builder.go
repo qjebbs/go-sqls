@@ -8,7 +8,7 @@ import (
 	"github.com/qjebbs/go-sqls/syntax"
 )
 
-var _ Builder = (*QueryBuilder)(nil)
+var _ sqls.Builder = (*QueryBuilder)(nil)
 
 // QueryBuilder is the SQL query builder.
 // It's recommended to wrap it with your struct to provide a
@@ -22,15 +22,15 @@ type QueryBuilder struct {
 	tables       []Table              // the tables in order
 	appliedNames map[sqls.Table]Table // applied table name mapping, the name is alias, or name if alias is empty
 
-	selects    *sqls.Segment // select columns and keep values in scanning.
-	touches    *sqls.Segment // select columns but drop values in scanning.
-	conditions *sqls.Segment // where conditions, joined with AND.
-	orders     *sqls.Segment // order by columns, joined with comma.
-	groupbys   *sqls.Segment // group by columns, joined with comma.
-	distinct   bool          // select distinct
-	limit      int64         // limit count
-	offset     int64         // offset count
-	unions     []Builder     // union queries
+	selects    *sqls.Segment  // select columns and keep values in scanning.
+	touches    *sqls.Segment  // select columns but drop values in scanning.
+	conditions *sqls.Segment  // where conditions, joined with AND.
+	orders     *sqls.Segment  // order by columns, joined with comma.
+	groupbys   *sqls.Segment  // group by columns, joined with comma.
+	distinct   bool           // select distinct
+	limit      int64          // limit count
+	offset     int64          // offset count
+	unions     []sqls.Builder // union queries
 
 	errors []error // errors during building
 }
@@ -165,7 +165,7 @@ func (b *QueryBuilder) GroupBy(column *sqls.TableColumn, args ...any) *QueryBuil
 // Union unions other query builders, the type of query builders can be
 // *QueryBuilder or any other extended *QueryBuilder types (structs with
 // *QueryBuilder embedded.)
-func (b *QueryBuilder) Union(builders ...Builder) *QueryBuilder {
+func (b *QueryBuilder) Union(builders ...sqls.Builder) *QueryBuilder {
 	b.unions = append(b.unions, builders...)
 	return b
 }

@@ -31,3 +31,11 @@
 //   - References in the #join template are functions, not function calls.
 //   - #c1 is equivalent to #c(1), which is a special syntax to call preprocessing functions when a number is the only argument.
 package sqls
+
+// Builder is the interface for sql builders.
+type Builder interface {
+	// Build builds and returns the query and args.
+	Build() (query string, args []any, err error)
+	// BuildTo builds the query and append args to the argStore.
+	BuildContext(ctx *Context) (query string, err error)
+}
