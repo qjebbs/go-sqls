@@ -52,7 +52,7 @@ func (b *QueryBuilder) markDependencies(dep map[Table]bool, t sqls.Table) error 
 		if column.Table == t {
 			continue
 		}
-		err := b.markDependencies(dep, t)
+		err := b.markDependencies(dep, column.Table)
 		if err != nil {
 			return err
 		}
