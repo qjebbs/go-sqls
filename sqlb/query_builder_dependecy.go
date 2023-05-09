@@ -4,22 +4,21 @@ import (
 	"fmt"
 
 	"github.com/qjebbs/go-sqls"
-	"github.com/qjebbs/go-sqls/slices"
 )
 
 func (b *QueryBuilder) calcDependency(selects *sqls.Segment) (map[Table]bool, error) {
-	columns := slices.Concat(
-		extractColumns(selects),
-		extractColumns(b.touches),
-		extractColumns(b.conditions),
-		extractColumns(b.orders),
-		extractColumns(b.groupbys),
+	tables := extractTables(
+		selects,
+		b.touches,
+		b.conditions,
+		b.orders,
+		b.groupbys,
 	)
 	m := make(map[Table]bool)
 	// first table is the main table and always included
 	m[b.tables[0]] = true
-	for _, column := range columns {
-		err := b.markDependencies(m, column.Table)
+	for _, t := range tables {
+		err := b.markDependencies(m, t.Table)
 		if err != nil {
 			return nil, err
 		}
@@ -48,28 +47,55 @@ func (b *QueryBuilder) markDependencies(dep map[Table]bool, t sqls.Table) error 
 		return nil
 	}
 	dep[ta] = true
-	for _, column := range from.Segment.Columns {
-		if column.Table == t {
+	for _, ft := range extractTables(from.Segment) {
+		if ft.Table == t {
 			continue
 		}
-		err := b.markDependencies(dep, column.Table)
+		err := b.markDependencies(dep, ft.Table)
 		if err != nil {
-			return err
+			return fmt.Errorf("%s: %s", ft.Source, err)
 		}
 	}
 	return nil
 }
 
-func extractColumns(s ...*sqls.Segment) []*sqls.TableColumn {
-	f := make([]*sqls.TableColumn, 0, len(s))
-	for _, s := range s {
+type tableWithSouce struct {
+	Table  sqls.Table
+	Source string
+}
+
+func extractTables(segments ...*sqls.Segment) []*tableWithSouce {
+	tables := []*tableWithSouce{}
+	dict := map[sqls.Table]bool{}
+	extractTables2(segments, &tables, &dict)
+	return tables
+}
+
+func extractTables2(segments []*sqls.Segment, tables *[]*tableWithSouce, dict *map[sqls.Table]bool) {
+	for _, s := range segments {
 		if s == nil {
 			continue
 		}
-		f = append(f, s.Columns...)
-		for _, s := range s.Segments {
-			f = append(f, extractColumns(s)...)
+		for i, t := range s.Tables {
+			if (*dict)[t] {
+				continue
+			}
+			*tables = append(*tables, &tableWithSouce{
+				Table:  t,
+				Source: fmt.Sprintf("#tables%d of '%s'", i+1, s.Raw),
+			})
+			(*dict)[t] = true
 		}
+		for i, c := range s.Columns {
+			if c == nil || (*dict)[c.Table] {
+				continue
+			}
+			*tables = append(*tables, &tableWithSouce{
+				Table:  c.Table,
+				Source: fmt.Sprintf("#column%d '%s' of '%s'", i+1, c.Raw, s.Raw),
+			})
+			(*dict)[c.Table] = true
+		}
+		extractTables2(s.Segments, tables, dict)
 	}
-	return f
 }
