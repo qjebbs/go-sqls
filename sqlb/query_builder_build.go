@@ -10,7 +10,7 @@ import (
 // Build builds the query.
 func (b *QueryBuilder) Build() (query string, args []any, err error) {
 	args = make([]any, 0)
-	ctx := sqls.NewContext(&args)
+	ctx := sqls.NewGlobalContext(&args)
 	ctx.BindVarStyle = b.bindVarStyle
 	query, err = b.buildInternal(ctx, b.selects)
 	if err != nil {
@@ -20,12 +20,12 @@ func (b *QueryBuilder) Build() (query string, args []any, err error) {
 }
 
 // BuildContext builds the query with the context.
-func (b *QueryBuilder) BuildContext(ctx *sqls.Context) (query string, err error) {
+func (b *QueryBuilder) BuildContext(ctx *sqls.GlobalContext) (query string, err error) {
 	return b.buildInternal(ctx, b.selects)
 }
 
 // buildInternal builds the query with the selects.
-func (b *QueryBuilder) buildInternal(ctx *sqls.Context, selects *sqls.Segment) (string, error) {
+func (b *QueryBuilder) buildInternal(ctx *sqls.GlobalContext, selects *sqls.Segment) (string, error) {
 	if b == nil {
 		return "", nil
 	}
@@ -97,7 +97,7 @@ func (b *QueryBuilder) buildInternal(ctx *sqls.Context, selects *sqls.Segment) (
 	return strings.TrimSpace(query + " " + union), nil
 }
 
-func (b *QueryBuilder) buildCTEs(ctx *sqls.Context, dep map[Table]bool) (string, error) {
+func (b *QueryBuilder) buildCTEs(ctx *sqls.GlobalContext, dep map[Table]bool) (string, error) {
 	if len(b.ctes) == 0 {
 		return "", nil
 	}
@@ -124,7 +124,7 @@ func (b *QueryBuilder) buildCTEs(ctx *sqls.Context, dep map[Table]bool) (string,
 	return "With " + strings.Join(clauses, ", "), nil
 }
 
-func (b *QueryBuilder) buildSelects(ctx *sqls.Context, s *sqls.Segment) (string, error) {
+func (b *QueryBuilder) buildSelects(ctx *sqls.GlobalContext, s *sqls.Segment) (string, error) {
 	if b.distinct {
 		s.Prefix = "SELECT DISTINCT"
 	} else {
@@ -147,7 +147,7 @@ func (b *QueryBuilder) buildSelects(ctx *sqls.Context, s *sqls.Segment) (string,
 	return sel + ", " + touches, nil
 }
 
-func (b *QueryBuilder) buildFrom(ctx *sqls.Context, dep map[Table]bool) (string, error) {
+func (b *QueryBuilder) buildFrom(ctx *sqls.GlobalContext, dep map[Table]bool) (string, error) {
 	tables := make([]string, 0, len(b.tables))
 	for _, t := range b.tables {
 		ft, ok := b.froms[t]
@@ -168,7 +168,7 @@ func (b *QueryBuilder) buildFrom(ctx *sqls.Context, dep map[Table]bool) (string,
 	return "FROM " + strings.Join(tables, " "), nil
 }
 
-func (b *QueryBuilder) buildUnion(ctx *sqls.Context) (string, error) {
+func (b *QueryBuilder) buildUnion(ctx *sqls.GlobalContext) (string, error) {
 	clauses := make([]string, 0, len(b.unions))
 	for _, union := range b.unions {
 		query, err := union.BuildContext(ctx)

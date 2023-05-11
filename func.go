@@ -8,24 +8,37 @@ import (
 	"github.com/qjebbs/go-sqls/syntax"
 )
 
-// preprocessor is the type of preprocessing functions.
-type preprocessor func(ctx *context, args ...string) (string, error)
+// FuncMap is the map of preprocessing functions.
+// Note: function names contain number [0-9] are not allowed.
+type FuncMap map[string]Func
 
-var builtInFuncs = map[string]preprocessor{
-	"join":    join,
-	"$":       argumentDollar,
-	"?":       argumentQuestion,
-	"c":       column,
-	"col":     column,
-	"column":  column,
-	"t":       table,
-	"table":   table,
-	"s":       segment,
-	"seg":     segment,
-	"segment": segment,
+// Func is the type of preprocessing functions.
+// A preprocessing function takes a ctx and args, returns the built string and any error.
+//
+// Two things for preprocessing functions to take care of, which are important:
+//   - cache the built string and reuse it if it's possible, because rebuilding
+//     leads to excessive argument allocation, and is expensive.
+//   - set the used flags to indicate if an arg/column/table/segment is used,
+//     since we need to check and make sure every arg/column/table/segment is used.
+type Func func(ctx *Context, args ...string) (string, error)
+
+func builtInFuncs() map[string]Func {
+	return map[string]Func{
+		"join":    join,
+		"$":       argumentDollar,
+		"?":       argumentQuestion,
+		"c":       column,
+		"col":     column,
+		"column":  column,
+		"t":       table,
+		"table":   table,
+		"s":       segment,
+		"seg":     segment,
+		"segment": segment,
+	}
 }
 
-func join(ctx *context, args ...string) (string, error) {
+func join(ctx *Context, args ...string) (string, error) {
 	if len(args) != 2 {
 		return "", argError("join(tmpl, sep string)", args)
 	}
@@ -101,24 +114,24 @@ func join(ctx *context, args ...string) (string, error) {
 	return b.String(), nil
 }
 
-func argumentDollar(ctx *context, args ...string) (string, error) {
+func argumentDollar(ctx *Context, args ...string) (string, error) {
 	return arg(ctx, syntax.Dollar, args...)
 }
 
-func argumentQuestion(ctx *context, args ...string) (string, error) {
+func argumentQuestion(ctx *Context, args ...string) (string, error) {
 	return arg(ctx, syntax.Question, args...)
 }
 
-func arg(ctx *context, typ syntax.BindVarStyle, args ...string) (string, error) {
-	if ctx.global.BindVarStyle == 0 {
-		ctx.global.BindVarStyle = typ
+func arg(ctx *Context, typ syntax.BindVarStyle, args ...string) (string, error) {
+	if ctx.Global.BindVarStyle == 0 {
+		ctx.Global.BindVarStyle = typ
 		// ctx.global.FirstBindvar = ctx.Segment.Raw
 	}
 	// if ctx.global.BindVarStyle != typ {
 	// 	return "", fmt.Errorf("mixed bindvar styles between segments '%s' and '%s'", ctx.global.FirstBindvar, ctx.Segment.Raw)
 	// }
 	if len(args) != 1 {
-		switch ctx.global.BindVarStyle {
+		switch ctx.Global.BindVarStyle {
 		case syntax.Dollar:
 			return "", argError("$(i int)", args)
 		default:
@@ -132,7 +145,7 @@ func arg(ctx *context, typ syntax.BindVarStyle, args ...string) (string, error) 
 	return buildArg(ctx, i)
 }
 
-func column(ctx *context, args ...string) (string, error) {
+func column(ctx *Context, args ...string) (string, error) {
 	if len(args) != 1 {
 		return "", argError("column(i int)", args)
 	}
@@ -143,7 +156,7 @@ func column(ctx *context, args ...string) (string, error) {
 	return buildColumn(ctx, i)
 }
 
-func table(ctx *context, args ...string) (string, error) {
+func table(ctx *Context, args ...string) (string, error) {
 	if len(args) != 1 {
 		return "", argError("tableName(i int)", args)
 	}
@@ -154,7 +167,7 @@ func table(ctx *context, args ...string) (string, error) {
 	return buildTable(ctx, i)
 }
 
-func segment(ctx *context, args ...string) (string, error) {
+func segment(ctx *Context, args ...string) (string, error) {
 	if len(args) != 1 {
 		return "", argError("segment(i int)", args)
 	}

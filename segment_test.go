@@ -2,6 +2,7 @@ package sqls_test
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/qjebbs/go-sqls"
@@ -202,6 +203,13 @@ func TestBuildSegment(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			segment: &sqls.Segment{
+				Raw: "#echo(1,2,3)",
+			},
+			want:     "1,2,3",
+			wantArgs: []any{},
+		},
 	}
 	for _, tc := range testCases {
 		tc := tc
@@ -212,7 +220,13 @@ func TestBuildSegment(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			args := make([]any, 0)
-			got, err := tc.segment.BuildContext(sqls.NewContext(&args))
+			ctx := sqls.NewGlobalContext(&args)
+			ctx.Funcs(sqls.FuncMap{
+				"echo": func(ctx *sqls.Context, args ...string) (string, error) {
+					return strings.Join(args, ","), nil
+				},
+			})
+			got, err := tc.segment.BuildContext(ctx)
 			if err != nil {
 				if tc.wantErr {
 					return

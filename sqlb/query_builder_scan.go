@@ -34,7 +34,7 @@ func (b *QueryBuilder) Scan(s QueryScanner) ([]any, error) {
 // Scan scans query rows with scanner
 func (b *QueryBuilder) scan(scanner QueryScanner, fn scanFunc) ([]any, error) {
 	args := make([]any, 0)
-	ctx := sqls.NewContext(&args)
+	ctx := sqls.NewGlobalContext(&args)
 	ctx.BindVarStyle = b.bindVarStyle
 	selects := scanner.Select()
 	var (
@@ -90,7 +90,7 @@ func (b *blackhole) Scan(_ any) error { return nil }
 // Count count the number of items that match the condition.
 func (b *QueryBuilder) Count(columns ...*sqls.TableColumn) (count int64, err error) {
 	args := make([]any, 0)
-	ctx := sqls.NewContext(&args)
+	ctx := sqls.NewGlobalContext(&args)
 	ctx.BindVarStyle = b.bindVarStyle
 	query, err := b.buildInternal(ctx, &sqls.Segment{
 		Prefix:  "SELECT",

@@ -11,7 +11,7 @@ import (
 // Build builds the segment.
 func (s *Segment) Build() (query string, args []any, err error) {
 	args = make([]any, 0)
-	query, err = s.BuildContext(NewContext(&args))
+	query, err = s.BuildContext(NewGlobalContext(&args))
 	if err != nil {
 		return "", nil, err
 	}
@@ -19,11 +19,11 @@ func (s *Segment) Build() (query string, args []any, err error) {
 }
 
 // BuildContext builds the segment with context.
-func (s *Segment) BuildContext(ctx *Context) (string, error) {
+func (s *Segment) BuildContext(ctx *GlobalContext) (string, error) {
 	if s == nil {
 		return "", nil
 	}
-	ctxCur := newSegmentContext(ctx, s)
+	ctxCur := newContext(ctx, s)
 	body, err := build(ctxCur)
 	if err != nil {
 		return "", err
@@ -46,7 +46,7 @@ func (s *Segment) BuildContext(ctx *Context) (string, error) {
 }
 
 // build builds the segment
-func build(ctx *context) (string, error) {
+func build(ctx *Context) (string, error) {
 	clause, err := syntax.Parse(ctx.Segment.Raw)
 	if err != nil {
 		return "", fmt.Errorf("parse '%s': %w", ctx.Segment.Raw, err)
@@ -59,14 +59,14 @@ func build(ctx *context) (string, error) {
 }
 
 // buildCluase builds the parsed clause within current context, not updating the ctx.current.
-func buildCluase(ctx *context, clause *syntax.Clause) (string, error) {
+func buildCluase(ctx *Context, clause *syntax.Clause) (string, error) {
 	b := new(strings.Builder)
 	for _, decl := range clause.ExprList {
 		switch expr := decl.(type) {
 		case *syntax.PlainExpr:
 			b.WriteString(expr.Text)
 		case *syntax.FuncCallExpr:
-			fn := ctx.global.funcMap[expr.Name]
+			fn := ctx.Global.funcs[expr.Name]
 			if fn == nil {
 				return "", fmt.Errorf("function '%s' is not found", expr.Name)
 			}
@@ -76,8 +76,8 @@ func buildCluase(ctx *context, clause *syntax.Clause) (string, error) {
 			}
 			b.WriteString(s)
 		case *syntax.BindVarExpr:
-			if ctx.global.BindVarStyle == 0 {
-				ctx.global.BindVarStyle = expr.Type
+			if ctx.Global.BindVarStyle == 0 {
+				ctx.Global.BindVarStyle = expr.Type
 				// ctx.global.FirstBindvar = ctx.Segment.Raw
 			}
 			// if ctx.global.BindVarStyle != expr.Type {
@@ -96,19 +96,19 @@ func buildCluase(ctx *context, clause *syntax.Clause) (string, error) {
 }
 
 // Arg renders the bindvar at index.
-func buildArg(ctx *context, index int) (string, error) {
+func buildArg(ctx *Context, index int) (string, error) {
 	if index > len(ctx.Segment.Args) {
 		return "", fmt.Errorf("invalid bindvar index %d", index)
 	}
 	i := index - 1
 	ctx.ArgsUsed[i] = true
 	built := ctx.ArgsBuilt[i]
-	if built == "" || ctx.global.BindVarStyle == syntax.Question {
-		*ctx.global.ArgStore = append(*ctx.global.ArgStore, ctx.Segment.Args[i])
-		if ctx.global.BindVarStyle == syntax.Question {
+	if built == "" || ctx.Global.BindVarStyle == syntax.Question {
+		*ctx.Global.ArgStore = append(*ctx.Global.ArgStore, ctx.Segment.Args[i])
+		if ctx.Global.BindVarStyle == syntax.Question {
 			built = "?"
 		} else {
-			built = "$" + strconv.Itoa(len(*ctx.global.ArgStore))
+			built = "$" + strconv.Itoa(len(*ctx.Global.ArgStore))
 		}
 		ctx.ArgsBuilt[i] = built
 	}
@@ -116,7 +116,7 @@ func buildArg(ctx *context, index int) (string, error) {
 }
 
 // Column renders the column at index.
-func buildColumn(ctx *context, index int) (string, error) {
+func buildColumn(ctx *Context, index int) (string, error) {
 	if index > len(ctx.Segment.Columns) {
 		return "", fmt.Errorf("invalid column index %d", index)
 	}
@@ -124,7 +124,7 @@ func buildColumn(ctx *context, index int) (string, error) {
 	ctx.ColumnsUsed[i] = true
 	col := ctx.Segment.Columns[i]
 	built := ctx.ColumnsBuilt[i]
-	if built == "" || (ctx.global.BindVarStyle == syntax.Question && len(col.Args) > 0) {
+	if built == "" || (ctx.Global.BindVarStyle == syntax.Question && len(col.Args) > 0) {
 		b, err := buildColumn2(ctx, col)
 		if err != nil {
 			return "", err
@@ -135,7 +135,7 @@ func buildColumn(ctx *context, index int) (string, error) {
 	return built, nil
 }
 
-func buildColumn2(ctx *context, c *TableColumn) (string, error) {
+func buildColumn2(ctx *Context, c *TableColumn) (string, error) {
 	if c == nil || c.Raw == "" {
 		return "", nil
 	}
@@ -144,7 +144,7 @@ func buildColumn2(ctx *context, c *TableColumn) (string, error) {
 		Args:   c.Args,
 		Tables: []Table{c.Table},
 	}
-	ctx = newSegmentContext(ctx.global, seg)
+	ctx = newContext(ctx.Global, seg)
 	built, err := build(ctx)
 	if err != nil {
 		return "", err
@@ -160,7 +160,7 @@ func buildColumn2(ctx *context, c *TableColumn) (string, error) {
 }
 
 // Table renders the table at index.
-func buildTable(ctx *context, index int) (string, error) {
+func buildTable(ctx *Context, index int) (string, error) {
 	if index > len(ctx.Segment.Tables) {
 		return "", fmt.Errorf("invalid table index %d", index)
 	}
@@ -169,7 +169,7 @@ func buildTable(ctx *context, index int) (string, error) {
 }
 
 // Segment renders the segment at index.
-func buildSegment(ctx *context, index int) (string, error) {
+func buildSegment(ctx *Context, index int) (string, error) {
 	if index > len(ctx.Segment.Segments) {
 		return "", fmt.Errorf("invalid segment index %d", index)
 	}
@@ -177,8 +177,8 @@ func buildSegment(ctx *context, index int) (string, error) {
 	ctx.SegmentsUsed[i] = true
 	seg := ctx.Segment.Segments[i]
 	built := ctx.SegmentsBuilt[i]
-	if built == "" || (ctx.global.BindVarStyle == syntax.Question && len(seg.Args) > 0) {
-		b, err := seg.BuildContext(ctx.global)
+	if built == "" || (ctx.Global.BindVarStyle == syntax.Question && len(seg.Args) > 0) {
+		b, err := seg.BuildContext(ctx.Global)
 		if err != nil {
 			return "", err
 		}

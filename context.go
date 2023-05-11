@@ -2,30 +2,43 @@ package sqls
 
 import (
 	"fmt"
+	"regexp"
 
 	"github.com/qjebbs/go-sqls/syntax"
 )
 
-// Context is the global context shared between all segments building.
-type Context struct {
+// GlobalContext is the global context shared between all segments building.
+type GlobalContext struct {
 	ArgStore     *[]any              // args store
 	BindVarStyle syntax.BindVarStyle // bindvar style
 
-	funcMap map[string]preprocessor // func map
+	funcs FuncMap
 }
 
-// NewContext returns a new context.
-func NewContext(argStore *[]any) *Context {
-	return &Context{
+// NewGlobalContext returns a new GlobalContext.
+func NewGlobalContext(argStore *[]any) *GlobalContext {
+	return &GlobalContext{
 		ArgStore: argStore,
-		funcMap:  builtInFuncs,
+		funcs:    builtInFuncs(),
 	}
 }
 
-// context is the context for current segment building.
-type context struct {
-	global  *Context // global context
-	Segment *Segment // current segment
+// Funcs Funcs adds the elements of the argument map to the context's function map.
+// It panics if a function name contains number [0-9].
+func (ctx *GlobalContext) Funcs(funcs FuncMap) {
+	r := regexp.MustCompile(`[0-9]`)
+	for k, v := range funcs {
+		if r.Match([]byte(k)) {
+			panic(fmt.Errorf("function name %q contains number [0-9]", k))
+		}
+		ctx.funcs[k] = v
+	}
+}
+
+// Context is the Context for current segment building.
+type Context struct {
+	Global  *GlobalContext // global context
+	Segment *Segment       // current segment
 
 	ArgsBuilt     []string // cache of built args
 	ColumnsBuilt  []string // cache of built columns
@@ -37,24 +50,26 @@ type context struct {
 	SegmentsUsed []bool // flags to indicate if a segment is used
 }
 
-func newSegmentContext(ctx *Context, s *Segment) *context {
+func newContext(ctx *GlobalContext, s *Segment) *Context {
 	if s == nil {
 		return nil
 	}
-	return &context{
-		global:        ctx,
-		Segment:       s,
+	return &Context{
+		Global:  ctx,
+		Segment: s,
+
 		ArgsBuilt:     make([]string, len(s.Args)),
 		ColumnsBuilt:  make([]string, len(s.Columns)),
-		TableUsed:     make([]bool, len(s.Tables)),
 		SegmentsBuilt: make([]string, len(s.Segments)),
-		ArgsUsed:      make([]bool, len(s.Args)),
-		ColumnsUsed:   make([]bool, len(s.Columns)),
-		SegmentsUsed:  make([]bool, len(s.Segments)),
+
+		ArgsUsed:     make([]bool, len(s.Args)),
+		ColumnsUsed:  make([]bool, len(s.Columns)),
+		TableUsed:    make([]bool, len(s.Tables)),
+		SegmentsUsed: make([]bool, len(s.Segments)),
 	}
 }
 
-func (c *context) checkUsage() error {
+func (c *Context) checkUsage() error {
 	if c == nil {
 		return nil
 	}

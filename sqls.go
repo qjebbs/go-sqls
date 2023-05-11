@@ -37,5 +37,5 @@ type Builder interface {
 	// Build builds and returns the query and args.
 	Build() (query string, args []any, err error)
 	// BuildTo builds the query and append args to the argStore.
-	BuildContext(ctx *Context) (query string, err error)
+	BuildContext(ctx *GlobalContext) (query string, err error)
 }
