@@ -33,6 +33,8 @@ type QueryBuilder struct {
 	unions     []sqls.Builder // union queries
 
 	errors []error // errors during building
+
+	debug bool // debug mode
 }
 
 // QueryAble is the interface for query-able *sql.DB, *sql.Tx

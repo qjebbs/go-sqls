@@ -2,6 +2,7 @@ package sqlb
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/qjebbs/go-sqls"
@@ -22,6 +23,11 @@ func (b *QueryBuilder) Build() (query string, args []any, err error) {
 // BuildContext builds the query with the context.
 func (b *QueryBuilder) BuildContext(ctx *sqls.Context) (query string, err error) {
 	return b.buildInternal(ctx, b.selects)
+}
+
+// Debug enables debug mode.
+func (b *QueryBuilder) Debug() {
+	b.debug = true
 }
 
 // buildInternal builds the query with the selects.
@@ -86,15 +92,22 @@ func (b *QueryBuilder) buildInternal(ctx *sqls.Context, selects *sqls.Segment) (
 	if b.offset > 0 {
 		clauses = append(clauses, fmt.Sprintf(`OFFSET %d`, b.offset))
 	}
-	query := strings.Join(clauses, " ")
-	if len(b.unions) == 0 {
-		return strings.TrimSpace(query), nil
+	query := strings.TrimSpace(strings.Join(clauses, " "))
+	if len(b.unions) > 0 {
+		union, err := b.buildUnion(ctx)
+		if err != nil {
+			return "", err
+		}
+		query = strings.TrimSpace(query + " " + union)
 	}
-	union, err := b.buildUnion(ctx)
-	if err != nil {
-		return "", err
+	if b.debug {
+		interpolated, err := sqls.Interpolate(query, *ctx.ArgStore...)
+		if err != nil {
+			log.Printf("debug: interpolate query: %s\n", err)
+		}
+		log.Println(interpolated)
 	}
-	return strings.TrimSpace(query + " " + union), nil
+	return query, nil
 }
 
 func (b *QueryBuilder) buildCTEs(ctx *sqls.Context, dep map[Table]bool) (string, error) {
