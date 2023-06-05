@@ -202,6 +202,21 @@ func TestBuildSegment(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			segment: &sqls.Segment{
+				Raw: "id IN (#b1)",
+				Builders: []sqls.Builder{
+					&sqls.Segment{
+						Raw:     "SELECT id FROM #t1 WHERE #c1 > $1",
+						Tables:  []sqls.Table{table},
+						Columns: alias.Expressions("id"),
+						Args:    []any{1},
+					},
+				},
+			},
+			want:     "id IN (SELECT id FROM table WHERE id > $1)",
+			wantArgs: []any{1},
+		},
 	}
 	for _, tc := range testCases {
 		tc := tc

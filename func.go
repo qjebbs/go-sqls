@@ -23,6 +23,8 @@ var builtInFuncs = map[string]preprocessor{
 	"s":       segment,
 	"seg":     segment,
 	"segment": segment,
+	"b":       builder,
+	"builder": builder,
 }
 
 func join(ctx *context, args ...string) (string, error) {
@@ -163,6 +165,17 @@ func segment(ctx *context, args ...string) (string, error) {
 		return "", fmt.Errorf("invalid index '%s': %w", args[0], err)
 	}
 	return buildSegment(ctx, i)
+}
+
+func builder(ctx *context, args ...string) (string, error) {
+	if len(args) != 1 {
+		return "", argError("builder(i int)", args)
+	}
+	i, err := strconv.Atoi(args[0])
+	if err != nil {
+		return "", fmt.Errorf("invalid index '%s': %w", args[0], err)
+	}
+	return buildBuilder(ctx, i)
 }
 
 func argError(sig string, args any) error {

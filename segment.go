@@ -8,6 +8,7 @@ type Segment struct {
 	Columns  []*TableColumn // Columns to be referenced by the Raw
 	Tables   []Table        // Table names / alias to be referenced by the Raw
 	Segments []*Segment     // Segments to be referenced by the Raw
+	Builders []Builder      // Builders to be referenced by the Raw
 
 	Prefix string // Prefix is added before the rendered segment only if which is not empty.
 	Suffix string // Suffix is added after the rendered segment only if which is not empty.

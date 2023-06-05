@@ -159,7 +159,6 @@ func buildColumn2(ctx *context, c *TableColumn) (string, error) {
 	return built, err
 }
 
-// Table renders the table at index.
 func buildTable(ctx *context, index int) (string, error) {
 	if index > len(ctx.Segment.Tables) {
 		return "", fmt.Errorf("invalid table index %d", index)
@@ -168,7 +167,6 @@ func buildTable(ctx *context, index int) (string, error) {
 	return string(ctx.Segment.Tables[index-1]), nil
 }
 
-// Segment renders the segment at index.
 func buildSegment(ctx *context, index int) (string, error) {
 	if index > len(ctx.Segment.Segments) {
 		return "", fmt.Errorf("invalid segment index %d", index)
@@ -183,6 +181,25 @@ func buildSegment(ctx *context, index int) (string, error) {
 			return "", err
 		}
 		ctx.SegmentsBuilt[i] = b
+		built = b
+	}
+	return built, nil
+}
+
+func buildBuilder(ctx *context, index int) (string, error) {
+	if index > len(ctx.Segment.Builders) {
+		return "", fmt.Errorf("invalid builder index %d", index)
+	}
+	i := index - 1
+	ctx.BuilderUsed[i] = true
+	builder := ctx.Segment.Builders[i]
+	built := ctx.BuildersBuilt[i]
+	if built == "" || ctx.global.BindVarStyle == syntax.Question {
+		b, err := builder.BuildContext(ctx.global)
+		if err != nil {
+			return "", err
+		}
+		ctx.BuildersBuilt[i] = b
 		built = b
 	}
 	return built, nil
