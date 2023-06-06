@@ -25,6 +25,7 @@ plus preprocessing functions support:
 | c, col, column  | Column by index                    | #c1, #c(1)                 |
 | t, table        | Table name / alias by index        | #t1, #t(1)                 |
 | s, seg, segment | Segment by index                   | #s1, #s(1)                 |
+| b, builder      | Builder by index                   | #b1, #b(1)                 |
 | join            | Join the template by the separator | #join('#segment', ' AND ') |
 | $               | Bindvar, usually used in #join()   | #join('#$', ', ')          |
 | ?               | Bindvar, usually used in #join()   | #join('#?', ', ')          |
