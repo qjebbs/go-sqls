@@ -17,26 +17,12 @@ type QueryScanner interface {
 	NewTarget() (target any, fields []any)
 }
 
-// scanFunc is the function called when a row is scanned.
-type scanFunc func(target any) error
-
-// // ScanFunc scans query rows with scanner, and call the fn
-// func (b *BaseQueryBuilder) ScanFunc(s Scanner, fn ScanFunc) error {
-// 	_, err := b.scan(s, fn)
-// 	return err
-// }
-
 // Scan scans query rows with scanner
 func (b *QueryBuilder) Scan(s QueryScanner) ([]any, error) {
-	return b.scan(s, nil)
-}
-
-// Scan scans query rows with scanner
-func (b *QueryBuilder) scan(scanner QueryScanner, fn scanFunc) ([]any, error) {
 	args := make([]any, 0)
 	ctx := sqls.NewContext(&args)
 	ctx.BindVarStyle = b.bindVarStyle
-	selects := scanner.Select()
+	selects := s.Select()
 	var (
 		query string
 		err   error
@@ -63,7 +49,7 @@ func (b *QueryBuilder) scan(scanner QueryScanner, fn scanFunc) ([]any, error) {
 	var results []any
 	bh := &blackhole{}
 	for rows.Next() {
-		target, fields := scanner.NewTarget()
+		target, fields := s.NewTarget()
 		for i := 0; i < len(b.touches.Segments); i++ {
 			fields = append(fields, &bh)
 		}
@@ -71,14 +57,7 @@ func (b *QueryBuilder) scan(scanner QueryScanner, fn scanFunc) ([]any, error) {
 		if err != nil {
 			return nil, err
 		}
-		if fn == nil {
-			results = append(results, target)
-		} else {
-			err = fn(target)
-			if err != nil {
-				return nil, err
-			}
-		}
+		results = append(results, target)
 	}
 	return results, nil
 }
