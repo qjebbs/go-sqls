@@ -13,8 +13,8 @@ func ExampleQueryBuilder_Build() {
 		foo = sqlb.NewTable("foo", "f")
 		bar = sqlb.NewTable("bar", "b")
 	)
-	b := sqlb.NewQueryBuilder(nil).
-		Select(foo.Columns("*")).
+	b := sqlb.NewQueryBuilder().
+		Select(foo.Column("*")).
 		From(foo).
 		InnerJoin(bar, &sqls.Segment{
 			Raw: "#c1=#c2",
@@ -54,10 +54,10 @@ func ExampleQueryBuilder_LeftJoinOptional() {
 		foo = sqlb.NewTable("foo", "f")
 		bar = sqlb.NewTable("bar", "b")
 	)
-	query, args, err := sqlb.NewQueryBuilder(nil).
+	query, args, err := sqlb.NewQueryBuilder().
 		BindVar(syntax.Dollar).
 		Distinct(). // *QueryBuilder trims optional joins only when SELECT DISTINCT is used.
-		Select(foo.Columns("*")).
+		Select(foo.Column("*")).
 		From(foo).
 		// declare an optional LEFT JOIN
 		LeftJoinOptional(bar, &sqls.Segment{
@@ -86,7 +86,7 @@ func ExampleQueryBuilder_With() {
 		bar = sqlb.NewTable("bar", "b")
 		cte = sqlb.NewTable("bar_type_1", "b1")
 	)
-	query, args, err := sqlb.NewQueryBuilder(nil).
+	query, args, err := sqlb.NewQueryBuilder().
 		BindVar(syntax.Dollar).
 		With(cte.Name, &sqls.Segment{
 			Raw:     "SELECT * FROM #t1 AS #t2 WHERE #c1=$1",
@@ -94,10 +94,10 @@ func ExampleQueryBuilder_With() {
 			Args:    []any{1},
 			Tables:  bar.Names(),
 		}).
-		Select([]*sqls.TableColumn{
+		Select(
 			foo.Column("*"),
 			cte.Column("*"),
-		}).
+		).
 		From(foo).
 		LeftJoinOptional(cte, &sqls.Segment{
 			Raw: "#c1=#c2",
@@ -119,18 +119,18 @@ func ExampleQueryBuilder_With() {
 
 func ExampleQueryBuilder_Union() {
 	var foo = sqlb.NewTable("foo", "f")
-	columns := foo.Columns("*")
-	query, args, err := sqlb.NewQueryBuilder(nil).
+	column := foo.Column("*")
+	query, args, err := sqlb.NewQueryBuilder().
 		BindVar(syntax.Dollar).
-		Select(columns).
+		Select(column).
 		From(foo).
 		Where2(foo.Column("id"), " = ", 1).
 		Union(
-			sqlb.NewQueryBuilder(nil).
+			sqlb.NewQueryBuilder().
 				BindVar(syntax.Dollar).
 				From(foo).
 				WhereIn(foo.Column("id"), []any{2, 3, 4}).
-				Select(columns),
+				Select(column),
 		).
 		Build()
 	if err != nil {

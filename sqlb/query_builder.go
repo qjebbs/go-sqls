@@ -1,7 +1,6 @@
 package sqlb
 
 import (
-	"database/sql"
 	"fmt"
 
 	"github.com/qjebbs/go-sqls"
@@ -14,7 +13,6 @@ var _ sqls.Builder = (*QueryBuilder)(nil)
 // It's recommended to wrap it with your struct to provide a
 // more friendly API and improve segment reusability.
 type QueryBuilder struct {
-	db           QueryAble           // the database connection
 	bindVarStyle syntax.BindVarStyle // the bindvar style
 
 	ctes         []*cte               // common table expressions
@@ -37,23 +35,14 @@ type QueryBuilder struct {
 	debug bool // debug mode
 }
 
-// QueryAble is the interface for query-able *sql.DB, *sql.Tx
-type QueryAble interface {
-	Exec(query string, args ...any) (sql.Result, error)
-	Prepare(query string) (*sql.Stmt, error)
-	Query(query string, args ...any) (*sql.Rows, error)
-	QueryRow(query string, args ...any) *sql.Row
-}
-
 type fromTable struct {
 	Segment  *sqls.Segment
 	Optional bool
 }
 
 // NewQueryBuilder returns a new QueryBuilder.
-func NewQueryBuilder(db QueryAble) *QueryBuilder {
+func NewQueryBuilder() *QueryBuilder {
 	return &QueryBuilder{
-		db:           db,
 		froms:        map[Table]*fromTable{},
 		appliedNames: make(map[sqls.Table]Table),
 		selects: &sqls.Segment{
@@ -86,11 +75,11 @@ func (b *QueryBuilder) Distinct() *QueryBuilder {
 }
 
 // Select replace the SELECT clause with the columns.
-func (b *QueryBuilder) Select(columns []*sqls.TableColumn) *QueryBuilder {
+func (b *QueryBuilder) Select(columns ...*sqls.TableColumn) *QueryBuilder {
 	if len(columns) == 0 {
 		return b
 	}
-	b.selects.AppendColumns(columns...)
+	b.selects.WithColumns(columns...)
 	return b
 }
 

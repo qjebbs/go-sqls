@@ -64,6 +64,8 @@ func Example_update() {
 		Prefix: "WHERE",
 		Raw:    "#join('#segment', ' AND ')",
 	}
+	// consider wrapping it with your own builder
+	// to provide a more friendly APIs
 	builder := &sqls.Segment{
 		Raw: "#join('#segment', ' ')",
 		Segments: []*sqls.Segment{

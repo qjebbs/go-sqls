@@ -13,7 +13,7 @@ func (b *QueryBuilder) Build() (query string, args []any, err error) {
 	args = make([]any, 0)
 	ctx := sqls.NewContext(&args)
 	ctx.BindVarStyle = b.bindVarStyle
-	query, err = b.buildInternal(ctx, b.selects)
+	query, err = b.buildInternal(ctx)
 	if err != nil {
 		return "", nil, err
 	}
@@ -22,7 +22,7 @@ func (b *QueryBuilder) Build() (query string, args []any, err error) {
 
 // BuildContext builds the query with the context.
 func (b *QueryBuilder) BuildContext(ctx *sqls.Context) (query string, err error) {
-	return b.buildInternal(ctx, b.selects)
+	return b.buildInternal(ctx)
 }
 
 // Debug enables debug mode.
@@ -31,7 +31,7 @@ func (b *QueryBuilder) Debug() {
 }
 
 // buildInternal builds the query with the selects.
-func (b *QueryBuilder) buildInternal(ctx *sqls.Context, selects *sqls.Segment) (string, error) {
+func (b *QueryBuilder) buildInternal(ctx *sqls.Context) (string, error) {
 	if b == nil {
 		return "", nil
 	}
@@ -40,7 +40,7 @@ func (b *QueryBuilder) buildInternal(ctx *sqls.Context, selects *sqls.Segment) (
 	}
 	clauses := make([]string, 0)
 
-	dep, err := b.calcDependency(selects)
+	dep, err := b.calcDependency()
 	if err != nil {
 		return "", err
 	}
@@ -53,7 +53,7 @@ func (b *QueryBuilder) buildInternal(ctx *sqls.Context, selects *sqls.Segment) (
 		clauses = append(clauses, sq)
 	}
 
-	sel, err := b.buildSelects(ctx, selects)
+	sel, err := b.buildSelects(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -103,7 +103,7 @@ func (b *QueryBuilder) buildInternal(ctx *sqls.Context, selects *sqls.Segment) (
 	if b.debug {
 		interpolated, err := sqls.Interpolate(query, *ctx.ArgStore...)
 		if err != nil {
-			log.Printf("debug: interpolate query: %s\n", err)
+			log.Printf("debug: interpolated query: %s\n", err)
 		}
 		log.Println(interpolated)
 	}
@@ -137,13 +137,13 @@ func (b *QueryBuilder) buildCTEs(ctx *sqls.Context, dep map[Table]bool) (string,
 	return "With " + strings.Join(clauses, ", "), nil
 }
 
-func (b *QueryBuilder) buildSelects(ctx *sqls.Context, s *sqls.Segment) (string, error) {
+func (b *QueryBuilder) buildSelects(ctx *sqls.Context) (string, error) {
 	if b.distinct {
-		s.Prefix = "SELECT DISTINCT"
+		b.selects.Prefix = "SELECT DISTINCT"
 	} else {
-		s.Prefix = "SELECT"
+		b.selects.Prefix = "SELECT"
 	}
-	sel, err := s.BuildContext(ctx)
+	sel, err := b.selects.BuildContext(ctx)
 	if err != nil {
 		return "", err
 	}

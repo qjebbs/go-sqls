@@ -2,9 +2,9 @@ package sqlb_test
 
 import (
 	"github.com/qjebbs/go-sqls"
-	"github.com/qjebbs/go-sqls/slices"
 	"github.com/qjebbs/go-sqls/sqlb"
 	"github.com/qjebbs/go-sqls/syntax"
+	"github.com/qjebbs/go-sqls/util"
 )
 
 func Example() {
@@ -13,18 +13,19 @@ func Example() {
 
 // Wrap with your own build to provide more friendly APIs.
 type UserQueryBuilder struct {
+	util.QueryAble
 	*sqlb.QueryBuilder
 }
 
-func NewUserQueryBuilder(db sqlb.QueryAble) *UserQueryBuilder {
-	b := sqlb.NewQueryBuilder(db).
+func NewUserQueryBuilder(db util.QueryAble) *UserQueryBuilder {
+	b := sqlb.NewQueryBuilder().
 		BindVar(syntax.Dollar).
 		Distinct().
 		From(TableUsers)
 	// b.InnerJoin( /*...*/ ).
 	// 	LeftJoin( /*...*/ ).
 	// 	LeftJoinOptional( /*...*/ )
-	return &UserQueryBuilder{b}
+	return &UserQueryBuilder{db, b}
 }
 
 func (b *UserQueryBuilder) Search(keyword string) *UserQueryBuilder {
@@ -38,11 +39,9 @@ func (b *UserQueryBuilder) Search(keyword string) *UserQueryBuilder {
 }
 
 func (b *UserQueryBuilder) GetUsers() ([]*User, error) {
-	scanned, err := b.QueryBuilder.Scan(&userScanner{})
-	if err != nil {
-		return nil, err
-	}
-	return slices.Atot[*User](scanned), nil
+	scanner := &userScanner{}
+	b.Select(scanner.Select()...)
+	return util.ScanBuilder[*User](b.QueryAble, b.QueryBuilder, scanner.NewScanTarget)
 }
 
 var TableUsers = sqlb.NewTable("users", "u")
@@ -59,7 +58,7 @@ func (s *userScanner) Select() []*sqls.TableColumn {
 	return TableUsers.Columns("id", "name", "email")
 }
 
-func (s *userScanner) NewTarget() (any, []any) {
+func (s *userScanner) NewScanTarget() (*User, []any) {
 	r := &User{}
 	return r, []interface{}{
 		&r.ID, &r.Name, &r.Email,

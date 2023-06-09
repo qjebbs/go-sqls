@@ -6,9 +6,9 @@ import (
 	"github.com/qjebbs/go-sqls"
 )
 
-func (b *QueryBuilder) calcDependency(selects *sqls.Segment) (map[Table]bool, error) {
+func (b *QueryBuilder) calcDependency() (map[Table]bool, error) {
 	tables := extractTables(
-		selects,
+		b.selects,
 		b.touches,
 		b.conditions,
 		b.orders,

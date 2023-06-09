@@ -2,7 +2,6 @@ package sqlb
 
 import (
 	"github.com/qjebbs/go-sqls"
-	"github.com/qjebbs/go-sqls/slices"
 )
 
 // Where add a condition.  e.g.:
@@ -45,7 +44,7 @@ func (b *QueryBuilder) WhereIn(column *sqls.TableColumn, list any) *QueryBuilder
 	return b.Where(&sqls.Segment{
 		Raw:     "#c1 IN (#join('#$', ', '))",
 		Columns: []*sqls.TableColumn{column},
-		Args:    slices.Ttoa(list),
+		Args:    argsFrom(list),
 	})
 }
 
@@ -54,6 +53,6 @@ func (b *QueryBuilder) WhereNotIn(column *sqls.TableColumn, list any) *QueryBuil
 	return b.Where(&sqls.Segment{
 		Raw:     "#c1 NOT IN (#join('#$', ', '))",
 		Columns: []*sqls.TableColumn{column},
-		Args:    slices.Ttoa(list),
+		Args:    argsFrom(list),
 	})
 }

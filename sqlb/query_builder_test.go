@@ -15,14 +15,14 @@ func TestQueryBuilder(t *testing.T) {
 		foo   = sqlb.NewTable("foo", "f")
 		bar   = sqlb.NewTable("bar", "b")
 	)
-	q := sqlb.NewQueryBuilder(nil).
+	q := sqlb.NewQueryBuilder().
 		BindVar(syntax.Dollar).Distinct().
 		With(users.Name, &sqls.Segment{
 			Raw:  "SELECT * FROM users WHERE type=$1",
 			Args: []any{"user"},
 		}).
 		With("xxx", &sqls.Segment{Raw: "SELECT 1 AS whatever"}) // should be ignored
-	q.Select(foo.Columns("id", "name")).
+	q.Select(foo.Columns("id", "name")...).
 		From(users).
 		LeftJoinOptional(foo, &sqls.Segment{
 			Raw: "#c1=#c2",
@@ -40,9 +40,9 @@ func TestQueryBuilder(t *testing.T) {
 		}).
 		Where2(users.Column("id"), "=", 1).
 		Union(
-			sqlb.NewQueryBuilder(nil).
+			sqlb.NewQueryBuilder().
 				BindVar(syntax.Dollar).
-				Select(foo.Columns("id", "name")).
+				Select(foo.Columns("id", "name")...).
 				From(foo).
 				Where(&sqls.Segment{
 					Raw:     "#c1>$1 AND #c1<$2",

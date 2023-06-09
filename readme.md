@@ -96,8 +96,8 @@ func ExampleQueryBuilder_Build() {
 		foo = sqlb.NewTable("foo", "f")
 		bar = sqlb.NewTable("bar", "b")
 	)
-	b := sqlb.NewQueryBuilder(nil).
-		Select(foo.Columns("*")).
+	b := sqlb.NewQueryBuilder().
+		Select(foo.Column("*")).
 		From(foo).
 		InnerJoin(bar, &sqls.Segment{
 			Raw: "#c1=#c2",

@@ -1,10 +1,8 @@
-package slices_test
+package sqlb
 
 import (
 	"reflect"
 	"testing"
-
-	"github.com/qjebbs/go-sqls/slices"
 )
 
 func TestConvertSlices(t *testing.T) {
@@ -22,7 +20,7 @@ func TestConvertSlices(t *testing.T) {
 		{slice: 1, want: []any{1}},
 	}
 	for _, tc := range testCases {
-		got := slices.Ttoa(tc.slice)
+		got := argsFrom(tc.slice)
 		if !reflect.DeepEqual(tc.want, got) {
 			t.Errorf("want: %s, got: %s", tc.want, got)
 		}
