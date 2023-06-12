@@ -7,7 +7,7 @@ import (
 	"github.com/qjebbs/go-sqls"
 )
 
-// QueryAble is the interface for query-able *sql.DB, *sql.Tx
+// QueryAble is the interface for query-able *sql.DB, *sql.Tx, etc.
 type QueryAble interface {
 	Exec(query string, args ...any) (sql.Result, error)
 	Prepare(query string) (*sql.Stmt, error)
@@ -15,12 +15,12 @@ type QueryAble interface {
 	QueryRow(query string, args ...any) *sql.Row
 }
 
-// NewScanDestFn is the function to create a new scan destination,
-// returning the destination and the fields to scan.
-type NewScanDestFn[T any] func() (T, []any)
+// NewScanDestFunc is the function to create a new scan destination,
+// returning the destination and its fields to scan.
+type NewScanDestFunc[T any] func() (T, []any)
 
 // ScanBuilder is like Scan, but it builds query from sqls.Builder
-func ScanBuilder[T any](db QueryAble, b sqls.Builder, fn NewScanDestFn[T]) ([]T, error) {
+func ScanBuilder[T any](db QueryAble, b sqls.Builder, fn NewScanDestFunc[T]) ([]T, error) {
 	query, args, err := b.Build()
 	if err != nil {
 		return nil, err
@@ -29,7 +29,7 @@ func ScanBuilder[T any](db QueryAble, b sqls.Builder, fn NewScanDestFn[T]) ([]T,
 }
 
 // Scan scans query rows with scanner
-func Scan[T any](db QueryAble, query string, args []any, fn NewScanDestFn[T]) ([]T, error) {
+func Scan[T any](db QueryAble, query string, args []any, fn NewScanDestFunc[T]) ([]T, error) {
 	rows, err := db.Query(query, args...)
 	if err != nil {
 		query, _ := Interpolate(query, args)
@@ -58,7 +58,7 @@ func Scan[T any](db QueryAble, query string, args []any, fn NewScanDestFn[T]) ([
 	return results, nil
 }
 
-// CountBuilder is like Count, but it builds query from sqls.Builder
+// CountBuilder is like Count, but it builds query from sqls.Builder.
 func CountBuilder(db QueryAble, b sqls.Builder) (count int64, err error) {
 	query, args, err := b.Build()
 	if err != nil {
@@ -67,7 +67,7 @@ func CountBuilder(db QueryAble, b sqls.Builder) (count int64, err error) {
 	return Count(db, query, args)
 }
 
-// Count count the number of items that match the condition.
+// Count count the number of rows of the query.
 func Count(db QueryAble, query string, args []any) (count int64, err error) {
 	query = fmt.Sprintf(`SELECT COUNT(1) FROM (%s) list`, query)
 	err = db.QueryRow(query, args...).Scan(&count)
