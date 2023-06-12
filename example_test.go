@@ -95,15 +95,3 @@ func Example_update() {
 	// UPDATE users SET name=$1, email=$2 WHERE id=$3
 	// [jebbs qjebbs@gmail.com 1]
 }
-
-func ExampleInterpolate() {
-	query := "SELECT * FROM foo WHERE id IN ($1, $2, $3) AND status=$4"
-	args := []any{1, 2, 3, "ok"}
-	interpolated, err := sqls.Interpolate(query, args...)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(interpolated)
-	// Output:
-	// SELECT * FROM foo WHERE id IN (1, 2, 3) AND status='ok'
-}

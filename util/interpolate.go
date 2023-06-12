@@ -1,4 +1,4 @@
-package sqls
+package util
 
 import (
 	"bytes"
@@ -11,9 +11,39 @@ import (
 	"github.com/qjebbs/go-sqls/syntax"
 )
 
+// InterpolateOption is the option of Interpolate.
+type InterpolateOption func(*interpolateOptions)
+
+type interpolateOptions struct {
+	// TimeFormat is the format of time value.
+	TimeFormat string
+}
+
+func defaultInterpolateOptions() *interpolateOptions {
+	return &interpolateOptions{
+		TimeFormat: "2006-01-02 15:04:05.999999",
+	}
+}
+
+func applyInterpolateOptions(options []InterpolateOption) *interpolateOptions {
+	opts := defaultInterpolateOptions()
+	for _, opt := range options {
+		opt(opts)
+	}
+	return opts
+}
+
+// WithTimeFormat sets the format of time value.
+func WithTimeFormat(format string) InterpolateOption {
+	return func(opts *interpolateOptions) {
+		opts.TimeFormat = format
+	}
+}
+
 // Interpolate interpolates the args into the query, use it only for
 // debug purposes to avoid SQL injection attacks.
-func Interpolate(query string, args ...any) (string, error) {
+func Interpolate(query string, args []any, options ...InterpolateOption) (string, error) {
+	opts := applyInterpolateOptions(options)
 	exprs, err := syntax.Parse(query)
 	if err != nil {
 		return "", err
@@ -24,7 +54,7 @@ func Interpolate(query string, args ...any) (string, error) {
 		case *syntax.PlainExpr:
 			b.WriteString(decl.Text)
 		case *syntax.BindVarExpr:
-			v, err := encodeValue(args[decl.Index-1])
+			v, err := encodeValue(args[decl.Index-1], opts)
 			if err != nil {
 				return "", err
 			}
@@ -36,7 +66,7 @@ func Interpolate(query string, args ...any) (string, error) {
 	return b.String(), nil
 }
 
-func encodeValue(arg any) ([]byte, error) {
+func encodeValue(arg any, opts *interpolateOptions) ([]byte, error) {
 	buf := bytes.NewBuffer(nil)
 	switch v := arg.(type) {
 	case nil:
@@ -46,7 +76,7 @@ func encodeValue(arg any) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		enc, err := encodeValue(val)
+		enc, err := encodeValue(val, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -59,7 +89,7 @@ func encodeValue(arg any) ([]byte, error) {
 		// In SQL standard, the precision of fractional seconds in time literal is up to 6 digits.
 		v = v.Round(time.Microsecond)
 		buf.WriteRune('\'')
-		buf.WriteString(v.Format("2006-01-02 15:04:05.999999"))
+		buf.WriteString(v.Format(opts.TimeFormat))
 		buf.WriteRune('\'')
 	case fmt.Stringer:
 		buf.Write(quoteStringValue(v.String()))
@@ -93,4 +123,19 @@ func quoteStringValue(s string) []byte {
 	buf.WriteString(strings.ReplaceAll(s, "'", "''"))
 	buf.WriteRune('\'')
 	return buf.Bytes()
+}
+
+var escaping = []struct {
+	from rune
+	to   string
+}{
+	{'\x00', `\0`},
+	{'\n', `\n`},
+	{'\r', `\r`},
+	{'\b', `\b`},
+	{'\t', `\t`},
+	{'\x1a', `\Z`},
+	{'\'', "''"},
+	{'"', `\"`},
+	{'\\', `\\`},
 }

@@ -32,7 +32,7 @@ func ScanBuilder[T any](db QueryAble, b sqls.Builder, fn NewScanDestFn[T]) ([]T,
 func Scan[T any](db QueryAble, query string, args []any, fn NewScanDestFn[T]) ([]T, error) {
 	rows, err := db.Query(query, args...)
 	if err != nil {
-		query, _ := sqls.Interpolate(query, args...)
+		query, _ := Interpolate(query, args)
 		return nil, fmt.Errorf("%w: %s", err, query)
 	}
 	defer rows.Close()
@@ -75,7 +75,7 @@ func Count(db QueryAble, query string, args []any) (count int64, err error) {
 		return 0, nil
 	}
 	if err != nil {
-		query, _ := sqls.Interpolate(query, args...)
+		query, _ := Interpolate(query, args)
 		return 0, fmt.Errorf("%w: %s", err, query)
 	}
 	return count, nil

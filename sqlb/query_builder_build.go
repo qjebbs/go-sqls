@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/qjebbs/go-sqls"
+	"github.com/qjebbs/go-sqls/util"
 )
 
 // Build builds the query.
@@ -101,7 +102,7 @@ func (b *QueryBuilder) buildInternal(ctx *sqls.Context) (string, error) {
 		query = strings.TrimSpace(query + " " + union)
 	}
 	if b.debug {
-		interpolated, err := sqls.Interpolate(query, *ctx.ArgStore...)
+		interpolated, err := util.Interpolate(query, *ctx.ArgStore)
 		if err != nil {
 			log.Printf("debug: interpolated query: %s\n", err)
 		}
