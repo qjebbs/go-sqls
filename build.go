@@ -66,7 +66,7 @@ func buildCluase(ctx *context, clause *syntax.Clause) (string, error) {
 		case *syntax.PlainExpr:
 			b.WriteString(expr.Text)
 		case *syntax.FuncCallExpr:
-			fn := ctx.global.funcMap[expr.Name]
+			fn := builtInFuncs[expr.Name]
 			if fn == nil {
 				return "", fmt.Errorf("function '%s' is not found", expr.Name)
 			}

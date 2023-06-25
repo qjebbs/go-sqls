@@ -10,15 +10,12 @@ import (
 type Context struct {
 	ArgStore     *[]any              // args store
 	BindVarStyle syntax.BindVarStyle // bindvar style
-
-	funcMap map[string]preprocessor // func map
 }
 
 // NewContext returns a new context.
 func NewContext(argStore *[]any) *Context {
 	return &Context{
 		ArgStore: argStore,
-		funcMap:  builtInFuncs,
 	}
 }
 

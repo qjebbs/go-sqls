@@ -11,20 +11,24 @@ import (
 // preprocessor is the type of preprocessing functions.
 type preprocessor func(ctx *context, args ...string) (string, error)
 
-var builtInFuncs = map[string]preprocessor{
-	"join":    join,
-	"$":       argumentDollar,
-	"?":       argumentQuestion,
-	"c":       column,
-	"col":     column,
-	"column":  column,
-	"t":       table,
-	"table":   table,
-	"s":       segment,
-	"seg":     segment,
-	"segment": segment,
-	"b":       builder,
-	"builder": builder,
+var builtInFuncs map[string]preprocessor
+
+func init() {
+	builtInFuncs = map[string]preprocessor{
+		"join":    join,
+		"$":       argumentDollar,
+		"?":       argumentQuestion,
+		"c":       column,
+		"col":     column,
+		"column":  column,
+		"t":       table,
+		"table":   table,
+		"s":       segment,
+		"seg":     segment,
+		"segment": segment,
+		"b":       builder,
+		"builder": builder,
+	}
 }
 
 func join(ctx *context, args ...string) (string, error) {
