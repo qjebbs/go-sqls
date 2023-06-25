@@ -1,45 +1,46 @@
-package sqlb
+package util
 
 import (
 	"reflect"
 )
 
-// argsFrom (T to any) is a help func to convert slice other types
-// to []any, if s is not a slice or array, it will return []any{s}.
-func argsFrom(s any) []any {
+// Args is a help func to convert s to query args.
+// if s is not a slice or array, it will return []any{s}.
+func Args(s any) []any {
 	switch a := s.(type) {
 	case []any:
 		return a
 	case []bool:
-		return convertSliceT(a)
+		return Ttoa(a)
 	case []float64:
-		return convertSliceT(a)
+		return Ttoa(a)
 	case []float32:
-		return convertSliceT(a)
+		return Ttoa(a)
 	case []int64:
-		return convertSliceT(a)
+		return Ttoa(a)
 	case []int32:
-		return convertSliceT(a)
+		return Ttoa(a)
 	case []string:
-		return convertSliceT(a)
+		return Ttoa(a)
 	case *[]bool:
-		return convertSliceT(*a)
+		return Ttoa(*a)
 	case *[]float64:
-		return convertSliceT(*a)
+		return Ttoa(*a)
 	case *[]float32:
-		return convertSliceT(*a)
+		return Ttoa(*a)
 	case *[]int64:
-		return convertSliceT(*a)
+		return Ttoa(*a)
 	case *[]int32:
-		return convertSliceT(*a)
+		return Ttoa(*a)
 	case *[]string:
-		return convertSliceT(*a)
+		return Ttoa(*a)
 	default:
 		return convertArrayReflect(s)
 	}
 }
 
-func convertSliceT[T any](slice []T) []any {
+// Ttoa is a help func to convert slice to []any.
+func Ttoa[T any](slice []T) []any {
 	if len(slice) == 0 {
 		return nil
 	}
